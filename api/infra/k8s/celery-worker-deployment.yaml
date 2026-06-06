@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smeflow-celery-worker
+  labels:
+    app: smeflow-celery-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: smeflow-celery-worker
+  template:
+    metadata:
+      labels:
+        app: smeflow-celery-worker
+    spec:
+      serviceAccountName: smeflow-worker
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: schema-check
+          image: ghcr.io/smeflow/api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "scripts.check_schema"]
+          envFrom:
+            - secretRef:
+                name: smeflow-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: worker
+          image: ghcr.io/smeflow/api:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          command:
+            - celery
+            - -A
+            - apps.api.workers.celery_app.celery
+            - worker
+            - --loglevel=INFO
+            - --queues=default,invoicing,payments,credit,notifications,billing
+          envFrom:
+            - secretRef:
+                name: smeflow-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi

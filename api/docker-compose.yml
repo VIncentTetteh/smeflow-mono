@@ -1,0 +1,168 @@
+version: "3.9"
+
+services:
+  # ── API ──────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smeflow:smeflow@db:5432/smeflow
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+      - ./migrations:/app/migrations
+      - ./scripts:/app/scripts
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smeflow:smeflow@db:5432/smeflow
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+      - ./migrations:/app/migrations
+      - ./scripts:/app/scripts
+    command: python -m alembic upgrade head
+    restart: "no"
+
+  # ── Celery Worker ─────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+    command: >
+      celery -A apps.api.workers.celery_app worker
+      -Q default,payments,payouts,invoicing,credit,notifications,billing
+      -c 4 --loglevel=info
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smeflow:smeflow@db:5432/smeflow
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+    restart: unless-stopped
+
+  # ── Celery Beat (scheduler) ────────────────────────────
+  beat:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+    command: >
+      celery -A apps.api.workers.celery_app beat
+      --scheduler redbeat.RedBeatScheduler --loglevel=info
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    depends_on:
+      - redis
+      - rabbitmq
+    volumes:
+      - ./apps:/app/apps
+    restart: unless-stopped
+
+  # ── PostgreSQL + TimescaleDB ───────────────────────────
+  db:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: smeflow
+      POSTGRES_PASSWORD: smeflow
+      POSTGRES_DB: smeflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smeflow -d smeflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Redis ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── RabbitMQ ───────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"     # Management UI: http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER must be set}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?RABBITMQ_PASS must be set}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Flower (Celery monitoring) ─────────────────────────
+  flower:
+    image: mher/flower:2.0
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      FLOWER_PORT: 5555
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitmqdata:

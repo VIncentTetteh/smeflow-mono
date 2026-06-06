@@ -1,0 +1,51 @@
+name: API Production Readiness
+
+on:
+  pull_request:
+  push:
+    branches: [main, production]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: smeflow
+          POSTGRES_PASSWORD: smeflow
+          POSTGRES_DB: smeflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+    env:
+      DATABASE_URL: postgresql+asyncpg://smeflow:smeflow@localhost:5432/smeflow_test
+      TEST_DATABASE_URL: postgresql+asyncpg://smeflow:smeflow@localhost:5432/smeflow_test
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: amqp://guest:guest@localhost:5672//
+      SECRET_KEY: ci-secret-key
+      ADMIN_ALLOWED_IPS: 127.0.0.1/32
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev
+      - run: uv run ruff check .
+      - run: uv run mypy apps/api --ignore-missing-imports
+      - run: uv run bandit -r apps/api -ll --exclude apps/api/tests
+      - run: uv run python -m alembic heads
+      - run: uv run pytest apps/api/tests/unit apps/api/tests/integration --cov=apps/api --cov-report=term-missing --cov-fail-under=80

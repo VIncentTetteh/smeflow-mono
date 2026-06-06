@@ -1,0 +1,86 @@
+# ── Secrets ───────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# ── Testing ───────────────────────────────────────────────
+.pytest_cache/
+pytest-cache-files-*/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.lcov
+coverage/
+
+# ── Type checking ─────────────────────────────────────────
+.mypy_cache/
+
+# ── Node ──────────────────────────────────────────────────
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+
+# ── Expo / React Native ───────────────────────────────────
+.expo/
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+*.p12
+
+# ── IDE / OS ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Alembic ───────────────────────────────────────────────
+# alembic.ini is generated per environment — do not commit
+# alembic.ini  # uncomment if you generate it
+
+# ── Docker ────────────────────────────────────────────────
+*.log
+
+# ── Certs & secrets ───────────────────────────────────────
+*.pem
+*.key
+*.crt
+secrets/
+
+# ── Generated assets ──────────────────────────────────────
+*.pdf
+*.qr.png
+tmp/
+
+# ── Large archives ────────────────────────────────────────
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# ── Tooling scratch ───────────────────────────────────────
+graphify-out/
+.superpowers/
+.remember/
+.claude/
+
+# ── Coverage artefacts ────────────────────────────────────
+.coverage

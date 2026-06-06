@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "SMEflow",
+    "slug": "smeflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "smeflow",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.smeflow.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "SMEflow uses the camera to scan product barcodes and QR codes for inventory and payments.",
+        "NSUserNotificationsUsageDescription": "SMEflow sends important alerts for payments, low stock, tax reminders, and sync issues.",
+        "NSFaceIDUsageDescription": "SMEflow can use Face ID to unlock your business workspace faster."
+      }
+    },
+    "android": {
+      "package": "com.smeflow.mobile",
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-camera",
+      "expo-notifications",
+      "expo-local-authentication"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7b8109b4-2df3-4620-a8a9-df3510ce34c9"
+      }
+    },
+    "owner": "vincentchrisbone123456789"
+  }
+}

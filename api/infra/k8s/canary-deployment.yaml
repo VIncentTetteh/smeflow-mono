@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smeflow-api-canary
+  labels:
+    app: smeflow-api
+    version: canary
+spec:
+  replicas: 1  # Start with 1 replica for 10% traffic
+  selector:
+    matchLabels:
+      app: smeflow-api
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: smeflow-api
+        version: canary
+    spec:
+      serviceAccountName: smeflow-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: api
+          image: ghcr.io/smeflow/api:latest  # Will be updated by CI
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_ENV
+              value: "production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: smeflow-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smeflow-api-canary
+spec:
+  selector:
+    app: smeflow-api
+    version: canary
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: LoadBalancer
