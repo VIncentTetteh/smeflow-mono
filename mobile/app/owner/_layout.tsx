@@ -8,6 +8,7 @@ import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth';
 import { registerDevice } from '@/api/auth.api';
+import { useBillingWorkspace } from '@/api/hooks/featureHooks';
 
 export default function OwnerLayout() {
   const { colors, spacing } = useTheme();
@@ -16,6 +17,8 @@ export default function OwnerLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const deviceRegistered = useRef(false);
+
+  useBillingWorkspace(); // Prime React Query cache so plan gates have data before screens mount
 
   useEffect(() => {
     if (!isAuthenticated) {
