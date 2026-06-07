@@ -52,3 +52,8 @@ export function toApiErrorMessage(error: unknown): string {
 export function isKycRequiredError(error: unknown): boolean {
   return normalizeApiError(error).code === 'KYC_VERIFICATION_REQUIRED';
 }
+
+export function is402Error(error: unknown): boolean {
+  const axiosError = error as { response?: { status?: number } } | null | undefined;
+  return axiosError?.response?.status === 402;
+}
