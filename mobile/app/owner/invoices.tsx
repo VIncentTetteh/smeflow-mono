@@ -14,6 +14,7 @@ import {
 } from '@/api/hooks/featureHooks';
 import type { InvoiceResponseDto } from '@/types/invoices';
 import { useTheme } from '@/lib/theme';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 
 
 function statusPill(status: string, colors: { brand: string; danger: string; gold: string }) {
@@ -144,6 +145,7 @@ export default function InvoicesScreen() {
         </TouchableOpacity>
       </View>
 
+      <PlanGatedScreen feature="invoices">
       {/* Stat cards */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', gap: 8 }}>
         {STATS.map((s) => (
@@ -435,6 +437,7 @@ export default function InvoicesScreen() {
           </View>
         </View>
       </Modal>
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
