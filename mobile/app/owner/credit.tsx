@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { type LoanProduct } from '@/api/credit.api';
 import { Text } from '@/components/ui/Text';
-import { UpgradePrompt } from '@/components/ui/UpgradePrompt';
 import {
   buildCreditInsights,
   buildLoanEmptyState,
@@ -13,7 +12,9 @@ import {
   type CreditDisplayFactor,
 } from '@/features/creditInsights';
 import { useTheme } from '@/lib/theme';
-import { useActiveLenders, useBillingWorkspace, useConfirmLoan, useCreditRequests, useCreditScore, useLoan, useLoanSchedule, useRequestLoan, useResendLoanConfirmation } from '@/api/hooks/featureHooks';
+import { useActiveLenders, useConfirmLoan, useCreditRequests, useCreditScore, useLoan, useLoanSchedule, useRequestLoan, useResendLoanConfirmation } from '@/api/hooks/featureHooks';
+import { usePlanGate } from '@/api/hooks/planGate';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 
 const MAX_SCORE = 100;
 
@@ -39,9 +40,8 @@ const INSTALMENT_STATUS: Record<string, { label: string; color: string; bg: stri
 
 export default function CreditScreen() {
   const { colors, fonts } = useTheme();
-  const billing = useBillingWorkspace();
-  const creditAllowed = billing.isError ? true : billing.data?.planUsage?.limits?.credit_scoring === true;
-  const creditReady = !billing.isLoading && creditAllowed;
+  const { allowed: creditAllowed, loading: creditLoading } = usePlanGate('credit_scoring');
+  const creditReady = !creditLoading && creditAllowed;
   const { data: scoreData, isLoading: scoreLoading } = useCreditScore(creditReady);
   const { data: requests } = useCreditRequests(creditReady);
   const lendersQuery = useActiveLenders(creditReady);
@@ -147,32 +147,10 @@ export default function CreditScreen() {
     );
   }
 
-  if (billing.isLoading || scoreLoading) {
+  if (creditLoading || scoreLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }} edges={['top']}>
         <ActivityIndicator color={colors.brand} size="large" />
-      </SafeAreaView>
-    );
-  }
-
-  if (!creditAllowed) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
-        <View style={{
-          paddingHorizontal: 16, paddingVertical: 12,
-          borderBottomWidth: 1, borderBottomColor: colors.border,
-          backgroundColor: colors.surface,
-        }}>
-          <Text style={{ fontFamily: fonts.displaySemiBold, fontSize: 20, color: colors.ink }}>Credit & Loans</Text>
-          <Text style={{ fontSize: 12, color: colors.muted }}>Verified lending partners and score insights</Text>
-        </View>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-          <UpgradePrompt
-            feature="Credit scoring"
-            requiredPlan="starter"
-            description="Starter unlocks SMEFlow score insights and lender matching for this business."
-          />
-        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -187,7 +165,7 @@ export default function CreditScreen() {
         <Text style={{ fontFamily: fonts.displaySemiBold, fontSize: 20, color: colors.ink }}>Credit & Loans</Text>
         <Text style={{ fontSize: 12, color: colors.muted }}>Verified lending partners and score insights</Text>
       </View>
-
+      <PlanGatedScreen feature="credit_scoring">
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 14 }}>
         {/* Score card — dark */}
         <View style={{ backgroundColor: colors.ink, borderRadius: 16, padding: 16, overflow: 'hidden' }}>
@@ -398,6 +376,7 @@ export default function CreditScreen() {
           </View>
         </View>
       </ScrollView>
+      </PlanGatedScreen>
 
       {/* Loan detail modal */}
       <Modal visible={!!selectedLoanId} transparent animationType="slide" onRequestClose={() => setSelectedLoanId(null)}>
