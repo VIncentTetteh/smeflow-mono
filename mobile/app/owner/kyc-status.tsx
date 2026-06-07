@@ -77,7 +77,10 @@ export default function KycStatusScreen() {
       {isLoading ? <CardSkeleton /> : null}
 
       <Card style={{ gap: spacing.sm }}>
-        <SectionHeader title="Business verification" subtitle="Verifies your business workspace" />
+        <SectionHeader
+          title="Business verification"
+          subtitle="Requires Business Registration Number · TIN optional"
+        />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ fontFamily: fonts.bodySemiBold }}>Business KYC</Text>
           <Badge label={status} variant={badgeVariant(status)} />
@@ -96,7 +99,7 @@ export default function KycStatusScreen() {
               {data?.failure_reason ?? businessKyc?.failure_reason ?? 'Contact support for details.'}
             </Text>
             <Button
-              label="Re-submit KYC"
+              label="Re-submit business KYC"
               variant="soft"
               onPress={() => router.push('/onboarding/kyc')}
             />
@@ -111,26 +114,29 @@ export default function KycStatusScreen() {
 
         {status === 'not_submitted' ? (
           <Button
-            label="Start KYC verification"
+            label="Start business verification"
             onPress={() => router.push('/onboarding/kyc')}
           />
         ) : null}
       </Card>
 
       <Card style={{ gap: spacing.sm }}>
-        <SectionHeader title="Personal verification" subtitle="Verifies your personal identity" />
+        <SectionHeader
+          title="Personal verification"
+          subtitle="Requires Ghana Card number"
+        />
         {userKycLoading ? <CardSkeleton /> : null}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontFamily: fonts.bodySemiBold }}>User KYC</Text>
+          <Text style={{ fontFamily: fonts.bodySemiBold }}>Personal KYC</Text>
           <Badge
             label={userStatus}
             variant={userStatus === 'verified' ? 'verified' : 'pending'}
           />
         </View>
 
-        {(userStatus === 'unverified') ? (
+        {userStatus === 'unverified' ? (
           <Button
-            label="Submit personal KYC"
+            label="Submit Ghana Card"
             onPress={() => router.push('/onboarding/kyc')}
           />
         ) : null}
@@ -145,7 +151,7 @@ export default function KycStatusScreen() {
           <View style={{ gap: spacing.sm }}>
             <Text style={{ color: colors.danger, fontFamily: fonts.bodySemiBold }}>Verification failed</Text>
             <Button
-              label="Re-submit personal KYC"
+              label="Re-submit Ghana Card"
               variant="soft"
               onPress={() => router.push('/onboarding/kyc')}
             />
