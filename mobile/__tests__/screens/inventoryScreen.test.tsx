@@ -94,6 +94,7 @@ jest.mock('@/api/hooks/featureHooks', () => ({
     refetch: mockRefetch,
   }),
   useThresholdSuggestion: () => ({ isPending: false, mutate: mockMutation }),
+  useTopItems: () => ({ data: [], isLoading: false, isError: false }),
   useUpdateItem: () => ({ isPending: false, mutate: mockMutation }),
   useUpdateSupplier: () => ({ isPending: false, mutate: mockMutation }),
 }));
@@ -127,7 +128,7 @@ describe('inventory screen pilot coverage', () => {
 
     expect(screen.getByText('Rice 5kg')).toBeTruthy();
     expect(screen.getByText('Items')).toBeTruthy();
-    expect(screen.getByText('Purchase Orders')).toBeTruthy();
+    expect(screen.getByText('Orders')).toBeTruthy();
     expect(screen.queryByText('Categories')).toBeNull();
     expect(screen.getByText('Add item')).toBeTruthy();
 
@@ -136,7 +137,7 @@ describe('inventory screen pilot coverage', () => {
     expect(screen.getByText('Akosua Wholesale')).toBeTruthy();
     expect(screen.queryByText('Rice 5kg')).toBeNull();
 
-    fireEvent.press(screen.getByText('Purchase Orders'));
+    fireEvent.press(screen.getByText('Orders'));
     expect(screen.getByText('Create PO')).toBeTruthy();
     expect(screen.getByText('No purchase orders yet')).toBeTruthy();
     expect(screen.queryByText('Rice 5kg')).toBeNull();

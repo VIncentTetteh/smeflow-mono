@@ -137,6 +137,8 @@ class Settings(BaseSettings):
     OTEL_ENABLED: bool = False
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
     OTEL_SERVICE_NAME: str = "smeflow-api"
+    ENABLE_PUBLIC_DOCS: bool = False
+    ENABLE_PUBLIC_METRICS: bool = False
 
     # ── Freemium Plan Limits ──────────────────────────────
     FREE_TIER_MONTHLY_SALES: int = -1
@@ -214,6 +216,11 @@ class Settings(BaseSettings):
                     "ADMIN_ALLOWED_IPS must be set to a non-empty comma-separated list of "
                     "IPs/CIDRs when APP_ENV=production. "
                     "An empty value allows ALL IPs to reach admin endpoints."
+                )
+            if self.ENABLE_PUBLIC_METRICS:
+                raise ValueError(
+                    "ENABLE_PUBLIC_METRICS must be false in production. Expose metrics only "
+                    "through an internal ingress or Prometheus scrape path."
                 )
         return self
 

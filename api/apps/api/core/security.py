@@ -5,7 +5,6 @@ Security utilities: JWT creation/verification, OTP generation/storage, password 
 import base64
 import hashlib
 import hmac
-import random
 import secrets
 import string
 import struct
@@ -84,7 +83,7 @@ def decode_token(token: str) -> dict:
 # ── OTP ───────────────────────────────────────────────────────────────────────
 def generate_otp(length: int = 6) -> str:
     """Generate a numeric OTP of the given length."""
-    return "".join(random.choices(string.digits, k=length))
+    return "".join(secrets.choice(string.digits) for _ in range(length))
 
 
 def _hash_otp(otp: str) -> str:

@@ -1,8 +1,19 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { Platform } from 'react-native';
 import { notifyAuthExpired } from '@/navigation/authEvents';
 import { useAuthStore } from '@/store/auth';
 
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
+function defaultDevApiBaseUrl() {
+  if (!__DEV__) {
+    return '';
+  }
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:8000';
+  }
+  return 'http://localhost:8000';
+}
+
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || defaultDevApiBaseUrl();
 
 // Guard: catch accidental LAN/localhost URLs shipping in non-dev builds
 if (__DEV__ === false && /https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.0\.0\.1)/.test(apiBaseUrl)) {
@@ -83,7 +94,7 @@ apiClient.interceptors.response.use(
     }
     try {
       const { data } = await axios.post(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1/auth/refresh`,
+        `${apiBaseUrl}/api/v1/auth/refresh`,
         { refresh_token: refreshToken }
       );
       const newToken: string | undefined = data?.access_token;

@@ -14,6 +14,13 @@ import { apiClient } from '@/api/client';
 import OnboardScreen from '../../app/agent/onboard';
 
 jest.mock('@tanstack/react-query', () => ({
+  useMutation: ({ mutationFn }: { mutationFn: (payload: unknown) => Promise<unknown> }) => ({
+    isPending: false,
+    mutate: (payload: unknown, options?: { onSuccess?: () => void; onError?: (error: unknown) => void }) => {
+      mutationFn(payload).then(options?.onSuccess).catch(options?.onError);
+    },
+    mutateAsync: mutationFn,
+  }),
   useQueryClient: () => ({
     invalidateQueries: jest.fn(),
   }),
@@ -61,8 +68,8 @@ describe('agent onboarding phone normalization', () => {
 
     const { getByLabelText, getAllByLabelText, getByText } = render(<OnboardScreen />);
 
-    fireEvent.changeText(getByLabelText('Business name'), 'Akosua Trading');
-    fireEvent.changeText(getByLabelText('Owner name'), 'Akosua Mensah');
+    fireEvent.changeText(getByLabelText('Business name *'), 'Akosua Trading');
+    fireEvent.changeText(getByLabelText('Owner name *'), 'Akosua Mensah');
     fireEvent.changeText(getAllByLabelText('Ghana phone number')[0], '0244123456');
     fireEvent.changeText(getAllByLabelText('Ghana phone number')[1], '+233 24 412 3456');
 
@@ -83,8 +90,8 @@ describe('agent onboarding phone normalization', () => {
   it('blocks submission when an optional wallet phone is invalid', async () => {
     const { getByLabelText, getAllByLabelText, getByText } = render(<OnboardScreen />);
 
-    fireEvent.changeText(getByLabelText('Business name'), 'Akosua Trading');
-    fireEvent.changeText(getByLabelText('Owner name'), 'Akosua Mensah');
+    fireEvent.changeText(getByLabelText('Business name *'), 'Akosua Trading');
+    fireEvent.changeText(getByLabelText('Owner name *'), 'Akosua Mensah');
     fireEvent.changeText(getAllByLabelText('Ghana phone number')[0], '244123456');
     fireEvent.changeText(getAllByLabelText('Ghana phone number')[1], '1234');
 

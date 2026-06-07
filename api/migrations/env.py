@@ -24,9 +24,15 @@ from apps.api.modules.payroll.models import Attendance, Employee, PayrollRun, Pa
 from apps.api.modules.billing.models import Subscription, BillingTransaction  # noqa: F401
 from apps.api.modules.kyc.models import KYCVerification  # noqa: F401
 from apps.api.modules.referral.models import Referral  # noqa: F401
-from apps.api.modules.credit.models import CreditScore, LoanRequest, LenderConsent  # noqa: F401
-from apps.api.modules.lender.models import LenderPartner  # noqa: F401
-from apps.api.modules.notifications.models import DeviceToken  # noqa: F401
+from apps.api.modules.inventory.supplier_models import Supplier, PurchaseOrder, PurchaseOrderItem  # noqa: F401
+from apps.api.modules.credit.models import CreditScore, LoanRequest, RepaymentInstalment, LenderConsent  # noqa: F401
+from apps.api.modules.lender.models import LenderPartner, LoanProduct, LenderLoanRevenue  # noqa: F401
+from apps.api.modules.notifications.models import DeviceToken, NotificationPreference, NotificationEvent, MerchantAlert, CustomerMessage, DeliveryAttempt  # noqa: F401
+from apps.api.modules.tax.input_vat import InputVATRecord  # noqa: F401
+from apps.api.modules.tax.rate_config import TaxRateConfig  # noqa: F401
+from apps.api.modules.admin.models import PlatformAdmin, AuditLog, PendingAdminAction, SuspensionAppeal  # noqa: F401
+from apps.api.modules.agent_network.models import Agent, AgentApplication, AgentCommission, OnboardingReferral, CommissionRateConfig, AgentTarget, AgentPayoutBatch, AgentPayoutAllocation  # noqa: F401
+from apps.api.modules.settlements.models import MerchantSettlement, MerchantLedgerEntry  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
@@ -44,9 +50,20 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_schemas=False,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
+
+
+def include_object(object, name, type_, reflected, compare_to):  # type: ignore[no-untyped-def]
+    """Exclude TimescaleDB internal schemas from Alembic autogenerate."""
+    if type_ == "schema" and name and name.startswith("_timescale"):
+        return False
+    if hasattr(object, "schema") and object.schema and object.schema.startswith("_timescale"):
+        return False
+    return True
 
 
 def do_run_migrations(connection):  # type: ignore[no-untyped-def]
@@ -54,7 +71,8 @@ def do_run_migrations(connection):  # type: ignore[no-untyped-def]
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
-        include_schemas=True,
+        include_schemas=False,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

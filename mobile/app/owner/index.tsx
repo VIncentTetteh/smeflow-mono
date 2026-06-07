@@ -351,7 +351,15 @@ export default function HomeScreen() {
     }));
   }, [analytics.data, sparkData]);
 
-  const alertRows = (dashData?.alerts?.items ?? []) as Array<{ id: string; title: string; message: string; severity: string; action_label?: string; action_path?: string }>;
+  const alertRows = (dashData?.alerts?.items ?? []) as Array<{
+    id: string;
+    title: string;
+    message: string;
+    severity: string;
+    action_label?: string;
+    action_path?: string;
+    read_at?: string | null;
+  }>;
   const unreadNotifications = dashData?.alerts?.unread_count ?? countUnreadMerchantAlerts(alertRows);
   const attentionItems = buildAttentionItems({
     creditScore: dashData?.credit_score as Parameters<typeof buildAttentionItems>[0]['creditScore'],

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRequiredApiUrl } from '@/lib/serverConfig';
 
 function csrfToken() {
   return crypto.randomUUID();
@@ -6,9 +7,9 @@ function csrfToken() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const apiUrl = process.env.API_URL ?? 'http://localhost:8000';
+  const apiUrl = getRequiredApiUrl();
 
-  const apiResp = await fetch(`${apiUrl}/auth/otp/verify`, {
+  const apiResp = await fetch(`${apiUrl}/api/v1/auth/otp/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

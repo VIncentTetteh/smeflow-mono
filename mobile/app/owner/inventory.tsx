@@ -38,6 +38,7 @@ import type { SaleResponseDto } from '@/types/sales';
 import type { CreateSupplierDto, PurchaseOrderDto, SupplierDto } from '@/types/inventory';
 import { useTheme } from '@/lib/theme';
 import { recordInputVAT } from '@/api/tax.api';
+import type { TopItemDto } from '@/api/analytics.api';
 
 function initials(name: string) {
   return name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -384,6 +385,7 @@ export default function InventoryScreen() {
   const createSupplierMutation = useCreateSupplier();
   const updateSupplierMutation = useUpdateSupplier();
   const deleteSupplierMutation = useDeleteSupplier();
+  const [section, setSection] = useState<'items' | 'suppliers' | 'orders' | 'performance'>('items');
 
   const topItemsRange = perfRange();
   const topItems = useTopItems(section === 'performance' ? topItemsRange : null);
@@ -464,7 +466,6 @@ export default function InventoryScreen() {
   }
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [section, setSection] = useState<'items' | 'suppliers' | 'orders' | 'performance'>('items');
   const [itemFilter, setItemFilter] = useState<'all' | 'low'>('all');
   const [query, setQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<LocalItem | null>(null);
@@ -488,7 +489,7 @@ export default function InventoryScreen() {
     : section === 'orders'
       ? 'Create PO'
       : section === 'performance'
-        ? null   // no add action on performance tab
+        ? undefined
         : 'Add item';
 
   const filtered = items.filter((i) => {
@@ -787,10 +788,10 @@ export default function InventoryScreen() {
               ) : (
                 (() => {
                   const rows = topItems.data ?? [];
-                  const maxRev = Math.max(...rows.map((r: Record<string, unknown>) => Number(r.total_revenue ?? 0)), 1);
+                  const maxRev = Math.max(...rows.map((r: TopItemDto) => Number(r.total_revenue ?? 0)), 1);
                   return (
                     <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, overflow: 'hidden' }}>
-                      {rows.map((item: Record<string, unknown>, i: number) => {
+                      {rows.map((item: TopItemDto, i: number) => {
                         const rev = Number(item.total_revenue ?? 0);
                         const qty = Number(item.total_qty ?? 0);
                         const barPct = rev / maxRev;

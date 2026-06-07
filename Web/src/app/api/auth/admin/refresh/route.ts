@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getRequiredApiUrl } from '@/lib/serverConfig';
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -8,7 +9,7 @@ export async function POST() {
     return NextResponse.json({ detail: 'Missing admin session' }, { status: 401 });
   }
 
-  const apiUrl = process.env.API_URL ?? 'http://localhost:8000';
+  const apiUrl = getRequiredApiUrl();
   const apiResp = await fetch(`${apiUrl}/api/v1/admin/auth/refresh`, {
     method: 'POST',
     headers: {

@@ -63,6 +63,22 @@ def test_require_webhook_ip_rejects_blocked_provider_source() -> None:
     assert exc.value.status_code == 403
 
 
+def test_production_webhook_allowlist_fails_closed_when_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        webhook_security,
+        "get_settings",
+        lambda: SimpleNamespace(APP_ENV="production", TRUSTED_PROXY_COUNT=0),
+    )
+    request = make_request(client_host="198.51.100.10")
+
+    with pytest.raises(HTTPException) as exc:
+        webhook_security.require_webhook_ip(request, "paystack", "")
+
+    assert exc.value.status_code == 403
+
+
 @pytest.mark.asyncio
 async def test_mark_webhook_seen_deduplicates_provider_reference(
     monkeypatch: pytest.MonkeyPatch,

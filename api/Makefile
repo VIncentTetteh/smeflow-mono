@@ -1,4 +1,4 @@
-.PHONY: help install dev up down logs shell db-shell migrate migrate-auto schema-check test lint typecheck format clean
+.PHONY: help install dev ensure-env up down logs shell db-shell migrate migrate-auto schema-check test lint typecheck format clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -10,10 +10,17 @@ install: ## Install dependencies with uv
 	uv run pre-commit install
 
 # ── Docker ──────────────────────────────────────────────
-up: ## Start all services
+ensure-env: ## Create ignored local .env from .env.example if missing
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "Created api/.env from api/.env.example for local Docker."; \
+		echo "Review and replace placeholder provider credentials before using external integrations."; \
+	fi
+
+up: ensure-env ## Start all services
 	docker compose up -d --build
 	@echo "API:       http://localhost:8000/api/docs"
-	@echo "RabbitMQ:  http://localhost:15672 (guest/guest)"
+	@awk -F= '/^RABBITMQ_USER=/{u=$$2} /^RABBITMQ_PASS=/{p=$$2} END {printf "RabbitMQ:  http://localhost:15672 (%s/%s)\n", u, p}' .env
 	@echo "Flower:    http://localhost:5555"
 
 down: ## Stop all services

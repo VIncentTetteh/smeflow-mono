@@ -15,6 +15,7 @@ import { PhoneInput, StyledTextInput } from '@/components/ui/Inputs';
 import { Screen, SectionHeader } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useOnboardTrader } from '@/api/hooks/featureHooks';
+import { isValidGhanaPhone } from '@/lib/phone';
 import { useTheme } from '@/lib/theme';
 import type { OnboardTraderResultDto } from '@/types/agents';
 
@@ -184,6 +185,17 @@ export default function OnboardScreen() {
   async function submit() {
     if (!businessName.trim() || !ownerName.trim() || !phone.trim()) {
       Alert.alert('Missing details', 'Business name, owner name and a valid phone are required.');
+      return;
+    }
+    if (!isValidGhanaPhone(phone)) {
+      Alert.alert('Invalid owner phone', 'Enter a valid Ghana phone number for the business owner.');
+      return;
+    }
+    if (walletPhone.trim() && !isValidGhanaPhone(walletPhone)) {
+      Alert.alert(
+        'Invalid wallet phone',
+        'Enter a valid Ghana phone number for the MoMo wallet, or leave it blank to use the owner phone.'
+      );
       return;
     }
 

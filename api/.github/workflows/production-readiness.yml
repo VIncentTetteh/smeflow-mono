@@ -39,6 +39,10 @@ jobs:
       ADMIN_ALLOWED_IPS: 127.0.0.1/32
     steps:
       - uses: actions/checkout@v4
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-python@v5
         with:

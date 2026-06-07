@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
+import { getRequiredApiUrl } from '@/lib/serverConfig';
 
 export async function GET(request: NextRequest) {
   const businessId = request.nextUrl.searchParams.get('business_id') ?? '';
@@ -10,8 +11,8 @@ export async function GET(request: NextRequest) {
     cookieStore.get('lender_token')?.value ??
     cookieStore.get('agent_token')?.value;
 
-  const apiUrl = process.env.API_URL ?? 'http://localhost:8000';
-  const upstreamUrl = `${apiUrl}/notifications/stream?business_id=${businessId}`;
+  const apiUrl = getRequiredApiUrl();
+  const upstreamUrl = `${apiUrl}/api/v1/notifications/stream?business_id=${encodeURIComponent(businessId)}`;
 
   const upstream = await fetch(upstreamUrl, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -1,6 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import {
   getAgentDashboard,
   getAgentReferralCode,
@@ -194,40 +192,23 @@ export function useExportAnalytics() {
       from_date: string;
       to_date: string;
     }) => {
-      // Use the synchronous download endpoint for mobile — avoids polling complexity
-      // and delivers the file directly via expo-file-system + expo-sharing
-      const ext = params.format === 'csv' ? 'csv' : params.format === 'pdf' ? 'pdf' : 'xlsx';
-      const filename = `${params.report}_${params.from_date}_${params.to_date}.${ext}`;
-      const localPath = `${FileSystem.documentDirectory}${filename}`;
-
-      // Get auth token for the download request
-      const token = apiClient.defaults.headers.common['Authorization'] as string | undefined;
-
-      const result = await FileSystem.downloadAsync(
-        `${apiClient.defaults.baseURL ?? ''}/api/v1/analytics/export/download?report=${params.report}&export_format=${params.format}&from_date=${params.from_date}&to_date=${params.to_date}&limit=200`,
-        localPath,
-        token ? { headers: { Authorization: token } } : undefined
-      );
-
-      if (result.status !== 200) {
-        throw new Error(`Export failed with status ${result.status}`);
-      }
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (!canShare) {
-        throw new Error('Sharing is not available on this device.');
-      }
-
-      await Sharing.shareAsync(result.uri, {
-        mimeType:
-          ext === 'csv' ? 'text/csv' :
-          ext === 'pdf' ? 'application/pdf' :
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: `Export: ${params.report}`,
-        UTI: ext === 'csv' ? 'public.comma-separated-values-text' : ext === 'pdf' ? 'com.adobe.pdf' : 'org.openxmlformats.spreadsheetml.sheet',
+      const job = await exportAnalytics({
+        report: params.report,
+        format: params.format,
+        group_by: params.group_by ?? 'day',
+        from_date: params.from_date,
+        to_date: params.to_date,
       });
 
-      return result.uri;
+      for (let i = 0; i < 10; i += 1) {
+        const status = await getExportDownload({ job_id: job.job_id });
+        if (status.status === 'ready' && status.download_url) {
+          return status.download_url;
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+      }
+
+      throw new Error('Export timed out. Try again later.');
     },
   });
 }

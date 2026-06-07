@@ -22,9 +22,11 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
-          image: ghcr.io/smeflow/api:latest  # Will be updated by CI
+          image: ghcr.io/smeflow/api:sha-placeholder
           ports:
             - containerPort: 8000
           env:
@@ -57,10 +59,19 @@ spec:
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: DoNotSchedule
+          whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:
               app: smeflow-api
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: smeflow-api
+                topologyKey: kubernetes.io/hostname
 ---
 apiVersion: v1
 kind: Service

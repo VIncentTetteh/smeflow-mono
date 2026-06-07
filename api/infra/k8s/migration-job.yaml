@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/smeflow/api:latest
+          image: ghcr.io/smeflow/api:sha-placeholder
           imagePullPolicy: IfNotPresent
           command: ["python", "-m", "alembic", "upgrade", "head"]
           envFrom:

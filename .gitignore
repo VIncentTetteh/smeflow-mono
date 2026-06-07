@@ -81,6 +81,12 @@ graphify-out/
 .superpowers/
 .remember/
 .claude/
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
 
 # ── Coverage artefacts ────────────────────────────────────
 .coverage

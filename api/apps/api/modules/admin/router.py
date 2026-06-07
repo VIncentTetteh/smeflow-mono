@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.core.config import get_settings
 from apps.api.core.database import get_db
 from apps.api.modules.admin.models import PendingAdminAction, SuspensionAppeal
 from apps.api.modules.admin.models import PlatformAdmin as PlatformAdminModel
@@ -67,11 +68,20 @@ def _ip_in_allowlist(client_ip: str, allowed: list[str]) -> bool:
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract real client IP from X-Forwarded-For or direct connection."""
+    """Extract client IP, honoring X-Forwarded-For only behind trusted proxies."""
+    settings = get_settings()
+    direct = request.client.host if request.client else ""
+    trusted_proxy_count = getattr(settings, "TRUSTED_PROXY_COUNT", 0)
+    if trusted_proxy_count <= 0:
+        return direct
+
     xff = request.headers.get("X-Forwarded-For")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host if request.client else ""
+    if not xff:
+        return direct
+    chain = [part.strip() for part in xff.split(",") if part.strip()]
+    if len(chain) < trusted_proxy_count + 1:
+        return direct
+    return chain[-(trusted_proxy_count + 1)]
 
 
 def _fingerprint(request: Request) -> str:
@@ -124,8 +134,6 @@ async def _require_platform_admin(
         raise HTTPException(401, "Admin account not found or deactivated")
 
     # ── IP allowlist ──────────────────────────────────────────────────────────
-    from apps.api.core.config import get_settings
-
     settings = get_settings()
 
     global_ips = [ip.strip() for ip in settings.ADMIN_ALLOWED_IPS.split(",") if ip.strip()]
@@ -203,8 +211,6 @@ class AdminLoanActionRequest(BaseModel):
 
 def _issue_admin_token(admin: PlatformAdminModel, request: Request) -> str:
     from jose import jwt as jose_jwt
-
-    from apps.api.core.config import get_settings
 
     settings = get_settings()
     expire = datetime.now(timezone.utc) + timedelta(hours=1)

@@ -48,6 +48,13 @@ def _matches(ip: str, allowlist: str) -> bool:
 
 
 def require_webhook_ip(request: Request, provider: str, allowlist: str) -> None:
+    settings = get_settings()
+    if settings.APP_ENV == "production" and not allowlist.strip():
+        logger.warning("webhook.ip_allowlist_unconfigured", provider=provider)
+        raise HTTPException(
+            status_code=403,
+            detail="Webhook source IP allowlist is not configured",
+        )
     ip = client_ip(request)
     if not _matches(ip, allowlist):
         logger.warning("webhook.ip_blocked", provider=provider, client_ip=ip)

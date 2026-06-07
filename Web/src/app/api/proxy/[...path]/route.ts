@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getRequiredApiUrl } from '@/lib/serverConfig';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -28,7 +29,7 @@ async function handler(
        cookieStore.get('lender_token')?.value ??
        cookieStore.get('agent_token')?.value);
 
-  const apiUrl = process.env.API_URL ?? 'http://localhost:8000';
+  const apiUrl = getRequiredApiUrl();
   const upstream = `${apiUrl}/api/v1/${path.join('/')}${request.nextUrl.search}`;
 
   const headers: Record<string, string> = {

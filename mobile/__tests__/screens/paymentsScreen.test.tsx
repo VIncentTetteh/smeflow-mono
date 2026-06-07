@@ -98,6 +98,7 @@ jest.mock('@/api/hooks/featureHooks', () => ({
     isError: false,
     refetch: mockRefetch,
   }),
+  useSettlementPreview: () => ({ data: null, isLoading: false, isError: false }),
   useRequestMerchantSettlement: () => ({ isPending: false, mutate: mockMutate }),
 }));
 

@@ -223,6 +223,7 @@ export async function pullChanges(database: Database) {
     try {
       pulled[config.table] = await pullTable(database, config, now);
     } catch (error) {
+      console.warn(`[sync] pull failed for table "${config.table}":`, error);
       errors.push({
         table: config.table,
         message: error instanceof Error ? error.message : 'Pull failed',

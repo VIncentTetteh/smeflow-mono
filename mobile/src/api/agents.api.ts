@@ -73,9 +73,8 @@ export async function listAgentPayoutHistory(params?: {
 export async function withdrawAgentWallet(
   body: AgentWithdrawRequestDto
 ): Promise<AgentWithdrawResponseDto> {
-  // Corrected endpoint — was /api/v1/payouts/withdraw (did not exist)
   const response = await apiClient.post<AgentWithdrawResponseDto>(
-    '/api/v1/agents/withdraw',
+    '/api/v1/payouts/withdraw',
     body
   );
   return response.data;

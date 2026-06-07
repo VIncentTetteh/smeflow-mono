@@ -4,6 +4,8 @@ metadata:
   name: smeflow-api
   labels:
     app: smeflow-api
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/smeflow-production-external-secrets
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -11,6 +13,8 @@ metadata:
   name: smeflow-worker
   labels:
     app: smeflow-celery-worker
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/smeflow-production-external-secrets
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -48,10 +52,17 @@ spec:
         - podSelector: {}
       ports:
         - protocol: TCP
-          port: 80
+          port: 8000
   egress:
     - to:
         - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 5672
     - to:
         - namespaceSelector:
             matchLabels:
@@ -71,6 +82,8 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+        - protocol: TCP
+          port: 80
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -117,3 +130,5 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+        - protocol: TCP
+          port: 80

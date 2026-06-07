@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: schema-check
-          image: ghcr.io/smeflow/api:latest
+          image: ghcr.io/smeflow/api:sha-placeholder
           imagePullPolicy: IfNotPresent
           command: ["python", "-m", "scripts.check_schema"]
           envFrom:
@@ -36,7 +36,7 @@ spec:
               drop: ["ALL"]
       containers:
         - name: worker
-          image: ghcr.io/smeflow/api:latest
+          image: ghcr.io/smeflow/api:sha-placeholder
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -59,3 +59,37 @@ spec:
             limits:
               cpu: "2"
               memory: 2Gi
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - celery -A apps.api.workers.celery_app.celery inspect ping -d "celery@$HOSTNAME"
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - celery -A apps.api.workers.celery_app.celery inspect ping -d "celery@$HOSTNAME"
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: smeflow-celery-worker
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: smeflow-celery-worker

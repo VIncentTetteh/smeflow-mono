@@ -50,6 +50,18 @@ class TestOTP:
     def test_otp_custom_length(self):
         assert len(generate_otp(length=4)) == 4
 
+    def test_otp_uses_crypto_secure_choice(self, monkeypatch: pytest.MonkeyPatch):
+        calls: list[str] = []
+
+        def fake_choice(alphabet: str) -> str:
+            calls.append(alphabet)
+            return "7"
+
+        monkeypatch.setattr("apps.api.core.security.secrets.choice", fake_choice)
+
+        assert generate_otp(length=4) == "7777"
+        assert calls == ["0123456789"] * 4
+
 
 class TestPasswordHashing:
     def test_hash_and_verify(self):

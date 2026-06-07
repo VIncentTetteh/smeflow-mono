@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: schema-check
-          image: ghcr.io/smeflow/api:latest
+          image: ghcr.io/smeflow/api:sha-placeholder
           imagePullPolicy: IfNotPresent
           command: ["python", "-m", "scripts.check_schema"]
           envFrom:
@@ -41,7 +41,7 @@ spec:
               drop: ["ALL"]
       containers:
         - name: api
-          image: ghcr.io/smeflow/api:latest
+          image: ghcr.io/smeflow/api:sha-placeholder
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -84,6 +84,22 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: smeflow-api
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: smeflow-api
 ---
 apiVersion: v1
 kind: Service

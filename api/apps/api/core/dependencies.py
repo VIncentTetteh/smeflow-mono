@@ -70,11 +70,10 @@ class RequireFeature:
         business_id: UUID = Depends(get_current_business_id),
         db: AsyncSession = Depends(get_db),
     ) -> None:
+        from apps.api.core.config import get_settings
         from apps.api.core.exceptions import PlanFeatureRequiredError
         from apps.api.modules.billing.models import PLANS
         from apps.api.modules.billing.service import BillingService
-
-        from apps.api.core.config import get_settings
 
         settings = get_settings()
         if settings.APP_ENV == "test":

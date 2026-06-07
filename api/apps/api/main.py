@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
 
 # ── App Factory ───────────────────────────────────────────────────────────────
 def create_app() -> FastAPI:
+    docs_enabled = settings.ENABLE_PUBLIC_DOCS or not settings.is_production
     app = FastAPI(
         title="SME Flow API",
         description=(
@@ -113,9 +114,9 @@ def create_app() -> FastAPI:
             "to get a JWT, then click **Authorize** and paste the `access_token` value."
         ),
         version="1.0.0",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        docs_url="/api/docs" if docs_enabled else None,
+        redoc_url="/api/redoc" if docs_enabled else None,
+        openapi_url="/api/openapi.json" if docs_enabled else None,
         lifespan=lifespan,
     )
 
@@ -181,12 +182,13 @@ def create_app() -> FastAPI:
     _configure_tracing(app)
 
     # ── Prometheus metrics ────────────────────────────────────────────────────
-    Instrumentator(
-        should_group_status_codes=False,
-        should_ignore_untemplated=True,
-        should_respect_env_var=True,
-        env_var_name="ENABLE_METRICS",
-    ).instrument(app).expose(app, endpoint="/metrics")
+    if settings.ENABLE_PUBLIC_METRICS or not settings.is_production:
+        Instrumentator(
+            should_group_status_codes=False,
+            should_ignore_untemplated=True,
+            should_respect_env_var=True,
+            env_var_name="ENABLE_METRICS",
+        ).instrument(app).expose(app, endpoint="/metrics")
 
     # ── Routers ───────────────────────────────────────────────────────────────
     _register_routers(app)
@@ -253,8 +255,8 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(lender_router, prefix=f"{prefix}/lender", tags=["Lender Partner"])
 
     # ── Merchant settlements ──────────────────────────────────────────────────
-    from apps.api.modules.settlements.router import router as settlements_router
     from apps.api.modules.settlements.admin_router import router as settlements_admin_router
+    from apps.api.modules.settlements.router import router as settlements_router
 
     app.include_router(
         settlements_router,
