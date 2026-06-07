@@ -54,6 +54,5 @@ export function isKycRequiredError(error: unknown): boolean {
 }
 
 export function is402Error(error: unknown): boolean {
-  const axiosError = error as { response?: { status?: number } } | null | undefined;
-  return axiosError?.response?.status === 402;
+  return normalizeApiError(error).status === 402;
 }
