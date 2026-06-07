@@ -262,7 +262,7 @@ describe('session bootstrap API', () => {
       kyc_status: 'submitted',
     });
     mock.onPost('/api/v1/kyc/submit', {
-      ghana_card_id: 'GHA-123456789-0',
+      business_registration_ref: 'BN-12345678',
       tin: 'C0012345678',
       documents: {},
     }).reply(200, {
@@ -279,7 +279,7 @@ describe('session bootstrap API', () => {
     await act(async () => {
       await userKyc.result.current.mutateAsync({ ghana_card_id: 'GHA-123456789-0' } as never);
       await businessKyc.result.current.mutateAsync({
-        ghana_card_id: 'GHA-123456789-0',
+        business_registration_ref: 'BN-12345678',
         tin: 'C0012345678',
       });
     });

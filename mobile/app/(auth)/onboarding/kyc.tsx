@@ -10,6 +10,7 @@ import { StatusMessage } from '@/components/ui/StatusMessage';
 import { Text } from '@/components/ui/Text';
 import { MOBILE_ANALYTICS_EVENTS, trackEvent } from '@/lib/analytics';
 import { useTheme } from '@/lib/theme';
+import { useAuthStore } from '@/store/auth';
 
 function formatGhanaCard(value: string): string {
   const stripped = value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -28,29 +29,34 @@ function validTin(value: string): boolean {
 }
 
 export default function KYCScreen() {
-  const [ghanaCardId, setGhanaCardId] = useState('');
-  const [tin, setTin] = useState('');
-  const [businessRegistrationRef, setBusinessRegistrationRef] = useState('');
-  const [loading, setLoading] = useState(false);
-  type KycErrors = { ghanaCard?: string; tin?: string; general?: string };
-  const [errors, setErrors] = useState<KycErrors>({});
   const router = useRouter();
   const { colors, spacing } = useTheme();
+  const userKycStatus = useAuthStore((s) => s.userKycStatus);
+  const userAlreadyVerified = userKycStatus?.kyc_status === 'verified';
 
-  function finish() {
-    router.push('/onboarding/plan');
-  }
+  const [ghanaCardId, setGhanaCardId] = useState('');
+  const [businessRegRef, setBusinessRegRef] = useState('');
+  const [tin, setTin] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  type KycErrors = { ghanaCard?: string; businessReg?: string; tin?: string; general?: string };
+  const [errors, setErrors] = useState<KycErrors>({});
 
   function validate(): boolean {
-    const newErrors: KycErrors = {};
-    if (!validGhanaCard(ghanaCardId)) {
-      newErrors.ghanaCard = 'Enter Ghana Card in the format GHA-123456789-0.';
+    const next: KycErrors = {};
+
+    if (!userAlreadyVerified && !validGhanaCard(ghanaCardId)) {
+      next.ghanaCard = 'Enter Ghana Card in the format GHA-123456789-0.';
+    }
+    if (!businessRegRef.trim()) {
+      next.businessReg = 'Business registration number is required.';
     }
     if (tin.trim() && !validTin(tin)) {
-      newErrors.tin = 'TIN must be exactly 11 digits.';
+      next.tin = 'TIN must be exactly 11 digits.';
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
   }
 
   async function submit() {
@@ -58,26 +64,20 @@ export default function KYCScreen() {
     if (!validate()) return;
     setLoading(true);
     setErrors({});
+
     try {
-      try {
-        await submitUserKyc({
-          ghana_card_id: ghanaCardId,
-          tin: tin.trim() || undefined,
-        });
-      } catch (userKycError: unknown) {
-        const status = (userKycError as { status?: number }).status;
-        if (status !== 409) throw userKycError;
+      if (!userAlreadyVerified) {
+        await submitUserKyc({ ghana_card_id: ghanaCardId });
       }
       await submitBusinessKyc({
-        ghana_card_id: ghanaCardId,
+        business_registration_ref: businessRegRef.trim(),
         tin: tin.trim() || undefined,
-        business_registration_ref: businessRegistrationRef.trim() || undefined,
         documents: [],
       });
       trackEvent(MOBILE_ANALYTICS_EVENTS.KYC_SUBMITTED, { scope: 'onboarding' });
-      finish();
-    } catch (submitError) {
-      setErrors((prev) => ({ ...prev, general: toApiErrorMessage(submitError) }));
+      router.push('/onboarding/plan');
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, general: toApiErrorMessage(err) }));
     } finally {
       setLoading(false);
     }
@@ -94,39 +94,48 @@ export default function KYCScreen() {
       title="Verify identity and business"
       totalSteps={5}
     >
+      {!userAlreadyVerified ? (
+        <>
+          <StyledTextInput
+            autoCapitalize="characters"
+            error={errors.ghanaCard}
+            label="Ghana Card number"
+            maxLength={15}
+            onChangeText={(value) => {
+              setGhanaCardId(formatGhanaCard(value));
+              setErrors((prev) => ({ ...prev, ghanaCard: undefined }));
+            }}
+            placeholder="GHA-123456789-0"
+            value={ghanaCardId}
+          />
+          <Text style={{ color: colors.muted, fontSize: 12, marginTop: -spacing.sm }}>
+            Format: GHA-XXXXXXXXX-X
+          </Text>
+        </>
+      ) : null}
+
       <StyledTextInput
         autoCapitalize="characters"
-        error={errors.ghanaCard}
-        label="Ghana Card number"
-        maxLength={15}
+        error={errors.businessReg}
+        label="Business registration number"
         onChangeText={(value) => {
-          setGhanaCardId(formatGhanaCard(value));
-          setErrors((prev) => ({ ...prev, ghanaCard: undefined }));
+          setBusinessRegRef(value);
+          setErrors((prev) => ({ ...prev, businessReg: undefined }));
         }}
-        placeholder="GHA-123456789-0"
-        value={ghanaCardId}
+        placeholder="BN-12345678"
+        value={businessRegRef}
       />
-      <Text style={{ color: colors.muted, fontSize: 12, marginTop: -spacing.sm }}>
-        Format: GHA-XXXXXXXXX-X
-      </Text>
 
       <StyledTextInput
         autoCapitalize="characters"
         error={errors.tin}
-        label="TIN"
+        label="TIN (optional)"
         onChangeText={(value) => {
           setTin(value);
           setErrors((prev) => ({ ...prev, tin: undefined }));
         }}
-        placeholder="Optional"
+        placeholder="12345678901"
         value={tin}
-      />
-      <StyledTextInput
-        autoCapitalize="characters"
-        label="Business registration reference"
-        onChangeText={setBusinessRegistrationRef}
-        placeholder="Optional"
-        value={businessRegistrationRef}
       />
 
       <View style={{ gap: spacing.sm }}>

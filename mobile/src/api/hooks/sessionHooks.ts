@@ -317,7 +317,7 @@ export function useSubmitUserKyc() {
 export function useSubmitBusinessKyc() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { ghana_card_id?: string; tin?: string; business_registration_ref?: string; documents?: object }) =>
+    mutationFn: (body: { business_registration_ref: string; tin?: string; documents?: object }) =>
       submitBusinessKyc(body),
     onSuccess: (businessKyc) => {
       trackEvent(MOBILE_ANALYTICS_EVENTS.KYC_SUBMITTED, {
