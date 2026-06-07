@@ -40,6 +40,21 @@ function badgeVariant(status: KycStatus): 'verified' | 'offline' | 'pending' {
   return 'pending';
 }
 
+const BUSINESS_STATUS_LABEL: Record<KycStatus, string> = {
+  verified: 'Verified',
+  pending: 'Pending review',
+  failed: 'Failed',
+  not_submitted: 'Not submitted',
+};
+
+const USER_STATUS_LABEL: Record<string, string> = {
+  verified: 'Verified',
+  pending: 'Pending review',
+  failed: 'Failed',
+  rejected: 'Rejected',
+  unverified: 'Not submitted',
+};
+
 export default function KycStatusScreen() {
   const { colors, fonts, spacing } = useTheme();
   const router = useRouter();
@@ -83,7 +98,7 @@ export default function KycStatusScreen() {
         />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ fontFamily: fonts.bodySemiBold }}>Business KYC</Text>
-          <Badge label={status} variant={badgeVariant(status)} />
+          <Badge label={BUSINESS_STATUS_LABEL[status] ?? status} variant={badgeVariant(status)} />
         </View>
 
         {status === 'pending' ? (
@@ -129,7 +144,7 @@ export default function KycStatusScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ fontFamily: fonts.bodySemiBold }}>Personal KYC</Text>
           <Badge
-            label={userStatus}
+            label={USER_STATUS_LABEL[userStatus] ?? userStatus}
             variant={userStatus === 'verified' ? 'verified' : 'pending'}
           />
         </View>
