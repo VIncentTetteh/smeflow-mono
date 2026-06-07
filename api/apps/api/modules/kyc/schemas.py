@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from apps.api.core.gh_identifiers import GHANA_CARD_PATTERN, TIN_PATTERN
+from apps.api.core.gh_identifiers import TIN_PATTERN
 
 # Exhaustive list of document types accepted by SMEflow KYC.
 # Adding new types requires a schema migration and re-deploy.
@@ -31,9 +31,8 @@ class KYCDocument(BaseModel):
 
 
 class KYCSubmit(BaseModel):
-    ghana_card_id: str | None = Field(None, pattern=GHANA_CARD_PATTERN)
+    business_registration_ref: str = Field(..., max_length=100)
     tin: str | None = Field(None, pattern=TIN_PATTERN)
-    business_registration_ref: str | None = Field(None, max_length=100)
     documents: list[KYCDocument] = Field(default_factory=list, max_length=10)
 
 

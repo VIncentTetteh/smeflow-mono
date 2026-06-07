@@ -8,31 +8,31 @@ from apps.api.modules.kyc.schemas import KYCSubmit
 
 
 class TestKYCSubmit:
-    def test_valid_ghana_card_accepted(self):
-        payload = KYCSubmit(ghana_card_id="GHA-123456789-0")
-        assert payload.ghana_card_id == "GHA-123456789-0"
+    def test_valid_business_reg_accepted(self):
+        payload = KYCSubmit(business_registration_ref="BN-12345678")
+        assert payload.business_registration_ref == "BN-12345678"
 
-    def test_malformed_ghana_card_rejected(self):
+    def test_business_reg_required(self):
         with pytest.raises(ValidationError) as exc:
-            KYCSubmit(ghana_card_id="BADCARD123")
+            KYCSubmit()
         errors = exc.value.errors()
-        assert any(e["loc"] == ("ghana_card_id",) for e in errors)
+        assert any(e["loc"] == ("business_registration_ref",) for e in errors)
 
-    def test_no_ghana_card_allowed(self):
-        payload = KYCSubmit()
-        assert payload.ghana_card_id is None
+    def test_tin_optional(self):
+        payload = KYCSubmit(business_registration_ref="BN-12345678")
+        assert payload.tin is None
 
-    def test_valid_tin_accepted(self):
-        payload = KYCSubmit(tin="12345678901")
+    def test_tin_accepted_when_provided(self):
+        payload = KYCSubmit(business_registration_ref="BN-12345678", tin="12345678901")
         assert payload.tin == "12345678901"
 
     def test_tin_wrong_length_rejected(self):
         with pytest.raises(ValidationError):
-            KYCSubmit(tin="123")
+            KYCSubmit(business_registration_ref="BN-12345678", tin="123")
 
     def test_tin_non_numeric_rejected(self):
         with pytest.raises(ValidationError):
-            KYCSubmit(tin="ABCDEFGHIJK")
+            KYCSubmit(business_registration_ref="BN-12345678", tin="ABCDEFGHIJK")
 
 
 class TestUserUpdateTin:
@@ -76,20 +76,19 @@ class TestKYCSubmitRequest:
 class TestKYCSubmitBoundary:
     def test_tin_boundary_minus_1(self):
         with pytest.raises(ValidationError):
-            KYCSubmit(tin="1234567890")  # 10 digits
+            KYCSubmit(business_registration_ref="BN-12345678", tin="1234567890")
 
     def test_tin_boundary_plus_1(self):
         with pytest.raises(ValidationError):
-            KYCSubmit(tin="123456789012")  # 12 digits
+            KYCSubmit(business_registration_ref="BN-12345678", tin="123456789012")
 
-    def test_ghana_card_8_digits_rejected(self):
+    def test_business_reg_too_long_rejected(self):
         with pytest.raises(ValidationError):
-            KYCSubmit(ghana_card_id="GHA-12345678-0")
+            KYCSubmit(business_registration_ref="X" * 101)
 
-    def test_all_none_allowed(self):
-        payload = KYCSubmit()
-        assert payload.ghana_card_id is None
-        assert payload.tin is None
+    def test_business_reg_at_max_length_accepted(self):
+        payload = KYCSubmit(business_registration_ref="X" * 100)
+        assert len(payload.business_registration_ref) == 100
 
 
 class TestKYCDocument:
@@ -129,11 +128,12 @@ class TestKYCDocument:
 
 class TestKYCSubmitDocuments:
     def test_empty_documents_list_accepted(self):
-        payload = KYCSubmit(documents=[])
+        payload = KYCSubmit(business_registration_ref="BN-12345678", documents=[])
         assert payload.documents == []
 
     def test_valid_document_in_list(self):
         payload = KYCSubmit(
+            business_registration_ref="BN-12345678",
             documents=[
                 {"document_type": "ghana_card_front", "url": "https://cdn.smeflow.app/docs/abc.jpg"}
             ]
@@ -142,7 +142,10 @@ class TestKYCSubmitDocuments:
 
     def test_invalid_document_type_in_list_rejected(self):
         with pytest.raises(ValidationError):
-            KYCSubmit(documents=[{"document_type": "passport", "url": "https://example.com/a.jpg"}])
+            KYCSubmit(
+                business_registration_ref="BN-12345678",
+                documents=[{"document_type": "passport", "url": "https://example.com/a.jpg"}]
+            )
 
     def test_too_many_documents_rejected(self):
         docs = [
@@ -150,10 +153,10 @@ class TestKYCSubmitDocuments:
             for i in range(11)
         ]
         with pytest.raises(ValidationError):
-            KYCSubmit(documents=docs)
+            KYCSubmit(business_registration_ref="BN-12345678", documents=docs)
 
     def test_no_documents_defaults_to_empty_list(self):
-        payload = KYCSubmit()
+        payload = KYCSubmit(business_registration_ref="BN-12345678")
         assert payload.documents == []
 
 
