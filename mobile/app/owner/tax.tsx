@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { useFileTaxReturn, useGenerateTaxReturn, useInputVATList, useRecordInputVAT, useTaxRates, useTaxWorkspace } from '@/api/hooks/featureHooks';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 import { useTheme } from '@/lib/theme';
 import { generateAndShareTaxPDF } from '@/lib/taxPdfGenerator';
 import { useAuthStore } from '@/store/auth';
@@ -182,6 +183,7 @@ export default function TaxScreen() {
         </View>
       </View>
 
+      <PlanGatedScreen feature="tax_summary">
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, gap: 14 }}
@@ -558,6 +560,7 @@ export default function TaxScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
