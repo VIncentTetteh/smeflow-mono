@@ -54,8 +54,7 @@ export interface UserUpdateDto {
 }
 
 export interface UserKYCSubmitDto {
-  ghana_card_id?: string;
-  tin?: string;
+  ghana_card_id: string;
 }
 
 export interface UserKYCStatusDto {

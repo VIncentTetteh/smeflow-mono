@@ -1,9 +1,8 @@
 import type { ISODateTime, UUID } from './common';
 
 export interface BusinessKYCSubmitDto {
-  ghana_card_id?: string;
+  business_registration_ref: string;
   tin?: string;
-  business_registration_ref?: string;
   documents?: object;
 }
 
