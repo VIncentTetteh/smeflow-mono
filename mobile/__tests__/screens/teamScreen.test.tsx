@@ -16,6 +16,14 @@ jest.mock('@/api/hooks/sessionHooks', () => ({
   useDeactivateBusinessMember: () => ({ isPending: false, mutate: mockDeactivateMutate }),
 }));
 
+// PlanGatedScreen uses useQuery internally — mock it to always render children
+jest.mock('@/components/ui/PlanGatedScreen', () => {
+  const React = require('react');
+  return {
+    PlanGatedScreen: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  };
+});
+
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
