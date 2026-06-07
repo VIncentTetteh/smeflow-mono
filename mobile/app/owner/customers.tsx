@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/lib/theme';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 import { useCustomer, useCustomers } from '@/api/hooks/featureHooks';
 import type { CustomerListItemDto } from '@/types/sales';
 
@@ -149,6 +150,7 @@ export default function CustomersScreen() {
         <Text style={{ fontSize: 12, color: colors.muted }}>{data?.total ?? 0} total</Text>
       </View>
 
+      <PlanGatedScreen feature="customers">
       {/* Search */}
       <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 }}>
         <View style={{
@@ -238,6 +240,7 @@ export default function CustomersScreen() {
       {selectedId && (
         <CustomerDetailModal customerId={selectedId} onClose={() => setSelectedId(null)} />
       )}
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
