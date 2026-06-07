@@ -7,13 +7,14 @@ import {
   useAnalyticsCashFlow,
   useAnalyticsPnL,
   useAnalyticsSummary,
-  useBillingWorkspace,
   useCustomerAnalytics,
   useExportAnalytics,
   useSalesHistory,
   useTopCustomers,
 } from '@/api/hooks/featureHooks';
 import { UpgradePrompt } from '@/components/ui/UpgradePrompt';
+import { usePlanGate } from '@/api/hooks/planGate';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 import * as Linking from 'expo-linking';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth';
@@ -62,11 +63,9 @@ export default function AnalyticsScreen() {
   const [sortMode, setSortMode] = useState<SortMode>('revenue');
   const range = useMemo(() => dateRange(period), [period]);
   const [analyticsTab, setAnalyticsTab] = useState<'overview' | 'finance' | 'customers' | 'benchmarks'>('overview');
-  const billing = useBillingWorkspace();
-  const analyticsLimit = billing.data?.planUsage?.limits?.analytics;
-  const hasBasicAnalytics = billing.isError || analyticsLimit === true || analyticsLimit === 'basic' || analyticsLimit === 'full';
-  const hasFullAnalytics = billing.isError || analyticsLimit === 'full';
-  const canExport = billing.data?.planUsage?.limits?.export === true;
+  const { allowed: hasBasicAnalytics } = usePlanGate('analytics_basic');
+  const { allowed: hasFullAnalytics } = usePlanGate('analytics_full');
+  const { allowed: canExport } = usePlanGate('export');
   const pnl = useAnalyticsPnL(analyticsTab === 'finance' && hasFullAnalytics ? range : null);
   const cashFlow = useAnalyticsCashFlow(analyticsTab === 'finance' && hasFullAnalytics ? range : null);
   const topCustomers = useTopCustomers(analyticsTab === 'customers' && hasFullAnalytics ? range : null);
@@ -174,14 +173,8 @@ export default function AnalyticsScreen() {
         </TouchableOpacity>
       </View>
 
+      <PlanGatedScreen feature="analytics_basic">
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 14 }}>
-        {!billing.isLoading && !hasBasicAnalytics ? (
-          <UpgradePrompt
-            feature="Analytics"
-            requiredPlan="starter"
-            description="Starter unlocks revenue trends, payment mix, and seller performance for this business."
-          />
-        ) : null}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {(['7d', '30d', '90d'] as Period[]).map((item) => {
             const selected = period === item;
@@ -257,7 +250,7 @@ export default function AnalyticsScreen() {
           })}
         </View>
 
-        {analyticsTab === 'overview' && hasBasicAnalytics && (
+        {analyticsTab === 'overview' && (
           <>
         {isLoading ? (
           <View style={{ paddingVertical: 32, alignItems: 'center' }}>
@@ -389,7 +382,7 @@ export default function AnalyticsScreen() {
           </>
         )}
 
-        {analyticsTab === 'finance' && !hasFullAnalytics && !billing.isLoading ? (
+        {analyticsTab === 'finance' && !hasFullAnalytics ? (
           <UpgradePrompt
             feature="Finance analytics"
             requiredPlan="pro"
@@ -469,7 +462,7 @@ export default function AnalyticsScreen() {
           </>
         )}
 
-        {analyticsTab === 'customers' && !hasFullAnalytics && !billing.isLoading ? (
+        {analyticsTab === 'customers' && !hasFullAnalytics ? (
           <UpgradePrompt
             feature="Customer analytics"
             requiredPlan="pro"
@@ -613,6 +606,7 @@ export default function AnalyticsScreen() {
           </View>
         )}
       </ScrollView>
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
