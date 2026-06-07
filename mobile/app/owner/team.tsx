@@ -9,6 +9,7 @@ import {
   useUpdateBusinessMember,
 } from '@/api/hooks/sessionHooks';
 import { useTheme } from '@/lib/theme';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 import { useAuthStore, type BusinessMember } from '@/store/auth';
 import type { MemberRole } from '@/types/business';
 
@@ -80,6 +81,7 @@ export default function TeamScreen() {
         </Text>
       </View>
 
+      <PlanGatedScreen feature="team">
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 14 }}>
         <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, gap: 10 }}>
           <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.ink }}>
@@ -226,6 +228,7 @@ export default function TeamScreen() {
           })}
         </View>
       </ScrollView>
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
