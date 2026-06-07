@@ -116,7 +116,7 @@ export default function KycStatusScreen() {
             <Button
               label="Re-submit business KYC"
               variant="soft"
-              onPress={() => router.push('/onboarding/kyc')}
+              onPress={() => router.push('/owner/kyc-business')}
             />
           </View>
         ) : null}
@@ -130,7 +130,7 @@ export default function KycStatusScreen() {
         {status === 'not_submitted' ? (
           <Button
             label="Start business verification"
-            onPress={() => router.push('/onboarding/kyc')}
+            onPress={() => router.push('/owner/kyc-business')}
           />
         ) : null}
       </Card>
@@ -152,7 +152,7 @@ export default function KycStatusScreen() {
         {userStatus === 'unverified' ? (
           <Button
             label="Submit Ghana Card"
-            onPress={() => router.push('/onboarding/kyc')}
+            onPress={() => router.push('/owner/kyc-personal')}
           />
         ) : null}
 
@@ -168,7 +168,7 @@ export default function KycStatusScreen() {
             <Button
               label="Re-submit Ghana Card"
               variant="soft"
-              onPress={() => router.push('/onboarding/kyc')}
+              onPress={() => router.push('/owner/kyc-personal')}
             />
           </View>
         ) : null}

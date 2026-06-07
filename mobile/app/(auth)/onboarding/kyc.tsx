@@ -34,6 +34,12 @@ export default function KYCScreen() {
   const userKycStatus = useAuthStore((s) => s.userKycStatus);
   const userAlreadyVerified = userKycStatus?.kyc_status === 'verified';
 
+  // Phase: 'personal' collects Ghana Card; 'business' collects Business Reg + TIN.
+  // Users who are already verified skip straight to 'business'.
+  const [phase, setPhase] = useState<'personal' | 'business'>(
+    userAlreadyVerified ? 'business' : 'personal',
+  );
+
   const [ghanaCardId, setGhanaCardId] = useState('');
   const [businessRegRef, setBusinessRegRef] = useState('');
   const [tin, setTin] = useState('');
@@ -42,33 +48,40 @@ export default function KYCScreen() {
   type KycErrors = { ghanaCard?: string; businessReg?: string; tin?: string; general?: string };
   const [errors, setErrors] = useState<KycErrors>({});
 
-  function validate(): boolean {
-    const next: KycErrors = {};
-
-    if (!userAlreadyVerified && !validGhanaCard(ghanaCardId)) {
-      next.ghanaCard = 'Enter Ghana Card in the format GHA-123456789-0.';
+  async function submitPersonal() {
+    if (loading) return;
+    if (!validGhanaCard(ghanaCardId)) {
+      setErrors({ ghanaCard: 'Enter Ghana Card in the format GHA-123456789-0.' });
+      return;
     }
+    setLoading(true);
+    setErrors({});
+    try {
+      await submitUserKyc({ ghana_card_id: ghanaCardId });
+      setPhase('business');
+    } catch (err) {
+      setErrors({ general: toApiErrorMessage(err) });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitBusiness() {
+    if (loading) return;
+    const next: KycErrors = {};
     if (!businessRegRef.trim()) {
       next.businessReg = 'Business registration number is required.';
     }
     if (tin.trim() && !validTin(tin)) {
       next.tin = 'TIN must be exactly 11 digits.';
     }
-
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  }
-
-  async function submit() {
-    if (loading) return;
-    if (!validate()) return;
+    if (Object.keys(next).length > 0) {
+      setErrors(next);
+      return;
+    }
     setLoading(true);
     setErrors({});
-
     try {
-      if (!userAlreadyVerified) {
-        await submitUserKyc({ ghana_card_id: ghanaCardId });
-      }
       await submitBusinessKyc({
         business_registration_ref: businessRegRef.trim(),
         tin: tin.trim() || undefined,
@@ -77,25 +90,25 @@ export default function KYCScreen() {
       trackEvent(MOBILE_ANALYTICS_EVENTS.KYC_SUBMITTED, { scope: 'onboarding' });
       router.push('/onboarding/plan');
     } catch (err) {
-      setErrors((prev) => ({ ...prev, general: toApiErrorMessage(err) }));
+      setErrors({ general: toApiErrorMessage(err) });
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <WizardScreen
-      continueLabel="Continue · Plan"
-      continueLoading={loading}
-      onBack={() => router.back()}
-      onContinue={submit}
-      step={4}
-      stepLabel="Identity"
-      title="Verify identity and business"
-      totalSteps={5}
-    >
-      {!userAlreadyVerified ? (
-        <>
+  if (phase === 'personal') {
+    return (
+      <WizardScreen
+        continueLabel="Next · Business details"
+        continueLoading={loading}
+        onBack={() => router.back()}
+        onContinue={submitPersonal}
+        step={4}
+        stepLabel="Identity"
+        title="Verify your identity"
+        totalSteps={5}
+      >
+        <View style={{ gap: 4 }}>
           <StyledTextInput
             autoCapitalize="characters"
             error={errors.ghanaCard}
@@ -108,12 +121,29 @@ export default function KYCScreen() {
             placeholder="GHA-123456789-0"
             value={ghanaCardId}
           />
-          <Text style={{ color: colors.muted, fontSize: 12, marginTop: -spacing.sm }}>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
             Format: GHA-XXXXXXXXX-X
           </Text>
-        </>
-      ) : null}
+        </View>
 
+        <View style={{ gap: spacing.sm }}>
+          {errors.general ? <StatusMessage message={errors.general} tone="error" /> : null}
+        </View>
+      </WizardScreen>
+    );
+  }
+
+  return (
+    <WizardScreen
+      continueLabel="Continue · Plan"
+      continueLoading={loading}
+      onBack={() => userAlreadyVerified ? router.back() : setPhase('personal')}
+      onContinue={submitBusiness}
+      step={4}
+      stepLabel="Business"
+      title="Verify your business"
+      totalSteps={5}
+    >
       <StyledTextInput
         autoCapitalize="characters"
         error={errors.businessReg}

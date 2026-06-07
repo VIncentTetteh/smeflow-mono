@@ -128,6 +128,8 @@ export default function OwnerLayout() {
         <Tabs.Screen name="team" options={{ href: null, title: 'Team & Roles' }} />
         <Tabs.Screen name="sync" options={{ href: null, title: 'Offline & Sync' }} />
         <Tabs.Screen name="kyc-status" options={{ href: null, title: 'KYC Status' }} />
+        <Tabs.Screen name="kyc-personal" options={{ href: null, title: 'Personal Verification' }} />
+        <Tabs.Screen name="kyc-business" options={{ href: null, title: 'Business Verification' }} />
         <Tabs.Screen name="credit" options={{ href: null, title: 'Credit & Loans' }} />
         <Tabs.Screen name="payroll" options={{ href: null, title: 'Payroll' }} />
         <Tabs.Screen name="tax" options={{ href: null, title: 'Tax & Compliance' }} />
