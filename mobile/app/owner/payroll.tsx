@@ -28,6 +28,7 @@ import {
   useUpdateEmployee,
 } from '@/api/hooks/featureHooks';
 import type { EmployeeDto, PayrollRunDto } from '@/types/payroll';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 
 type Tab = 'team' | 'history';
 
@@ -281,6 +282,7 @@ export default function PayrollScreen() {
         </View>
       </View>
 
+      <PlanGatedScreen feature="payroll">
       {/* ── Tab bar ── */}
       <View
         style={{
@@ -1512,6 +1514,7 @@ export default function PayrollScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
