@@ -8,7 +8,8 @@ import { Text } from '@/components/ui/Text';
 import { StyledTextInput } from '@/components/ui/Inputs';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { createBusiness } from '@/api/business.api';
-import { toApiErrorMessage } from '@/api/errors';
+import { toApiErrorMessage, is402Error } from '@/api/errors';
+import { UpgradePrompt } from '@/components/ui/UpgradePrompt';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth';
 import type { BusinessType } from '@/types/business';
@@ -34,6 +35,7 @@ export default function AddBusinessScreen() {
   const [tin, setTin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
 
   async function submit() {
     if (loading || !name.trim()) return;
@@ -54,7 +56,11 @@ export default function AddBusinessScreen() {
       queryClient.clear();
       router.replace('/owner');
     } catch (err) {
-      setError(toApiErrorMessage(err));
+      if (is402Error(err)) {
+        setUpgradeRequired(true);
+      } else {
+        setError(toApiErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -86,7 +92,7 @@ export default function AddBusinessScreen() {
       >
         <StyledTextInput
           label="Business name"
-          onChangeText={(v) => { setName(v); setError(null); }}
+          onChangeText={(v) => { setName(v); setError(null); setUpgradeRequired(false); }}
           placeholder="Akosua's Provisions"
           value={name}
         />
@@ -138,12 +144,20 @@ export default function AddBusinessScreen() {
 
         {error ? <StatusMessage message={error} tone="error" /> : null}
 
+        {upgradeRequired ? (
+          <UpgradePrompt
+            feature="Multiple businesses"
+            requiredPlan="starter"
+            description="You've reached your plan's business limit. Upgrade to add more businesses to your account."
+          />
+        ) : null}
+
         <TouchableOpacity
           onPress={submit}
-          disabled={loading || !name.trim()}
+          disabled={loading || !name.trim() || upgradeRequired}
           style={{
             height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-            backgroundColor: loading || !name.trim() ? `${colors.brand}50` : colors.brand,
+            backgroundColor: loading || !name.trim() || upgradeRequired ? `${colors.brand}50` : colors.brand,
             marginTop: 8,
           }}
         >
