@@ -33,7 +33,6 @@ class KYCService:
             self.db.add(verification)
 
         verification.user_id = user_id
-        verification.ghana_card_id = data.ghana_card_id
         verification.tin = data.tin
         verification.business_registration_ref = data.business_registration_ref
         verification.documents = data.documents  # type: ignore[assignment]  # JSONB accepts list[KYCDocument]

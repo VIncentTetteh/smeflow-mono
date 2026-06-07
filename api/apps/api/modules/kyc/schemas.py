@@ -31,7 +31,6 @@ class KYCDocument(BaseModel):
 
 
 class KYCSubmit(BaseModel):
-    ghana_card_id: str | None = Field(None, max_length=50)
     business_registration_ref: str = Field(..., max_length=100)
     tin: str | None = Field(None, pattern=TIN_PATTERN)
     documents: list[KYCDocument] = Field(default_factory=list, max_length=10)

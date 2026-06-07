@@ -330,10 +330,10 @@ async def test_kyc_gates_lending_for_unverified_business(async_client: AsyncClie
 
     submit = await async_client.post(
         "/api/v1/kyc/submit",
-        json={"ghana_card_id": "GHA-123456789-1"},
+        json={"business_registration_ref": "BN-12345678"},
         headers=_headers(user.id, business.id, "owner"),
     )
-    assert submit.status_code == 200
+    assert submit.status_code == 201
 
     admin = await async_client.post(
         f"/api/v1/kyc/review/{business.id}",
@@ -391,7 +391,7 @@ async def test_agent_can_onboard_trader_business_wallet_and_kyc(
 
     kyc = await async_client.post(
         f"/api/v1/agents/onboarding/business/{business_id}/kyc",
-        json={"business_registration_ref": "BN-12345678", "ghana_card_id": "GHA-123456789-1", "tin": "C0099999999"},
+        json={"business_registration_ref": "BN-12345678", "tin": "C0099999999"},
         headers=auth_headers,
     )
     assert kyc.status_code == 201

@@ -345,7 +345,7 @@ async def submit_kyc(
     db: AsyncSession = Depends(get_db),
 ) -> KYCStatusResponse:
     """
-    Submit KYC documents (Ghana Card ID and/or TIN).
+    Submit user KYC via Ghana Card ID.
     Transitions status: unverified → pending.
     Already-pending or verified users receive 409.
     """
@@ -365,18 +365,12 @@ async def submit_kyc(
             "Contact support if you need to update your documents.",
         )
 
-    if not body.ghana_card_id and not body.tin:
-        raise HTTPException(
-            status_code=422,
-            detail="At least one of ghana_card_id or tin must be provided.",
-        )
-
     # Persist document references
-    update_fields: dict = {"kyc_status": "pending", "kyc_submitted_at": datetime.now(timezone.utc)}
-    if body.ghana_card_id:
-        update_fields["ghana_card_id"] = body.ghana_card_id
-    if body.tin:
-        update_fields["tin"] = body.tin
+    update_fields: dict = {
+        "kyc_status": "pending",
+        "kyc_submitted_at": datetime.now(timezone.utc),
+        "ghana_card_id": body.ghana_card_id,
+    }
 
     user = await repo.update(user, **update_fields)
 
