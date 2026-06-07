@@ -53,14 +53,20 @@ class TestUserUpdateTin:
             UserUpdate(tin="1234567890A")
 
 
-class TestKYCSubmitRequestGhanaCard:
+class TestKYCSubmitRequest:
     def test_valid_ghana_card_accepted(self):
         r = KYCSubmitRequest(ghana_card_id="GHA-123456789-0")
         assert r.ghana_card_id == "GHA-123456789-0"
 
+    def test_ghana_card_required(self):
+        with pytest.raises(ValidationError) as exc:
+            KYCSubmitRequest()
+        errors = exc.value.errors()
+        assert any(e["loc"] == ("ghana_card_id",) for e in errors)
+
     def test_ghana_card_8_digits_rejected(self):
         with pytest.raises(ValidationError):
-            KYCSubmitRequest(ghana_card_id="GHA-12345678-0")  # 8 not 9
+            KYCSubmitRequest(ghana_card_id="GHA-12345678-0")
 
     def test_ghana_card_letters_in_digits_rejected(self):
         with pytest.raises(ValidationError):

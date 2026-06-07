@@ -82,8 +82,7 @@ class UserResponse(BaseModel):
 
 # ── KYC ───────────────────────────────────────────────────────────────────────
 class KYCSubmitRequest(BaseModel):
-    ghana_card_id: str | None = Field(None, pattern=GHANA_CARD_PATTERN)
-    tin: str | None = Field(None, pattern=TIN_PATTERN)
+    ghana_card_id: str = Field(..., pattern=GHANA_CARD_PATTERN)
 
 
 class KYCStatusResponse(BaseModel):
