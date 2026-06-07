@@ -10,6 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/lib/theme';
 import { useIgnoreReconciliationItem, useReconciliationInbox, useUnignoreReconciliationItem } from '@/api/hooks/featureHooks';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 
 const PAGE_SIZE = 25;
 
@@ -115,6 +116,7 @@ export default function ReconciliationScreen() {
         </View>
       </View>
 
+      <PlanGatedScreen feature="bulk_momo_payout">
       {/* Filter chips */}
       <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
         {(['unmatched', 'all'] as FilterMode[]).map((f) => (
@@ -272,6 +274,7 @@ export default function ReconciliationScreen() {
           </View>
         )}
       </ScrollView>
+      </PlanGatedScreen>
     </SafeAreaView>
   );
 }
