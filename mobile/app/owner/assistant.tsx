@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { useChatHistory, useClearChatHistory, useProcessChatMessage } from '@/api/hooks/featureHooks';
+import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 import { useTheme } from '@/lib/theme';
 import { LANGUAGE_OPTIONS, useUIStore } from '@/store/ui';
 
@@ -378,6 +379,7 @@ export default function AssistantScreen() {
           </TouchableOpacity>
         </View>
 
+        <PlanGatedScreen feature="assistant">
         {/* Language picker modal */}
         <Modal visible={showLangPicker} transparent animationType="fade">
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowLangPicker(false)}>
@@ -486,6 +488,7 @@ export default function AssistantScreen() {
             <MaterialCommunityIcons name="send" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
+        </PlanGatedScreen>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
