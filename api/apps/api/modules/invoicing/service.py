@@ -58,16 +58,18 @@ class InvoicingService:
         sale_items = list(items_result.scalars().all())
         receivable = await self.db.scalar(select(Receivable).where(Receivable.sale_id == sale_id))
 
-        # Compute GRA tax breakdown using effective (potentially overridden) rates
+        # Compute GRA tax breakdown. sell_price is tax-INCLUSIVE so we extract
+        # the pre-tax base rather than adding tax on top of the sale total.
         from apps.api.modules.tax.rate_config import get_effective_rates
 
         rates = await get_effective_rates(business_id, self.db)
-        subtotal = sale.subtotal
+        total = sale.total  # what the customer actually paid (tax-inclusive)
+        combined_rate = rates.vat_rate + rates.nhil_rate + rates.getfund_rate + rates.covid_levy_rate
+        subtotal = _round(total / (1 + combined_rate))  # pre-tax base
         vat = _round(subtotal * rates.vat_rate)
         nhil = _round(subtotal * rates.nhil_rate)
         getfund = _round(subtotal * rates.getfund_rate)
         covid = _round(subtotal * rates.covid_levy_rate)
-        total = subtotal + vat + nhil + getfund + covid
 
         invoice_number = await self._next_invoice_number(business_id)
         verification_id = self._generate_verification_id(

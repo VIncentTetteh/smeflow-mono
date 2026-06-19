@@ -5,15 +5,17 @@ from __future__ import annotations
 from datetime import date, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from pathlib import Path
 
 from apps.api.core.config import get_settings
 from apps.api.core.database import get_db
 from apps.api.core.dependencies import RequireFeature, get_current_business_id
 from apps.api.modules.analytics.service import AnalyticsService
 from apps.api.workers.dispatch import enqueue_task
+from apps.api.workers.celery_app import celery
 
 router = APIRouter()
 
@@ -58,6 +60,21 @@ async def revenue_by_period(
         raise HTTPException(400, "group_by must be one of: day, week, month")
 
     from_date, to_date = _period_window(period)
+
+    # Require explicit dates when not polling a background job. This prevents
+    # passing None into date parsing which raises TypeError (fromisoformat).
+    if not from_date or not to_date:
+        raise HTTPException(400, "from_date and to_date are required when job_id is not provided")
+
+    # Require explicit dates when not polling a background job to avoid
+    # calling date parsing with None values (which raises TypeError).
+    if not from_date or not to_date:
+        raise HTTPException(400, "from_date and to_date are required when job_id is not provided")
+
+    # When not polling a background job, require explicit from/to dates
+    # to avoid passing None to the analytics service date parsing.
+    if not from_date or not to_date:
+        raise HTTPException(400, "from_date and to_date are required when job_id is not provided")
 
     svc = AnalyticsService(db)
     rows = await svc.revenue_by_day(business_id, from_date, to_date)
@@ -351,11 +368,14 @@ async def export_analytics(
 
 @router.get("/export/download")
 async def export_analytics_sync(
+    request: Request,
     report: str = Query("revenue", description="revenue|top_items|profit_loss|cash_flow"),
     export_format: str = Query("csv", description="csv|xlsx|pdf"),
-    from_date: str = Query(..., description="ISO date e.g. 2025-01-01"),
-    to_date: str = Query(..., description="ISO date e.g. 2025-01-31"),
+    from_date: str | None = Query(None, description="ISO date e.g. 2025-01-01"),
+    to_date: str | None = Query(None, description="ISO date e.g. 2025-01-31"),
     limit: int = Query(50, ge=1, le=200),
+    job_id: str | None = Query(None, description="Optional Celery job id for polling"),
+    raw: bool = Query(False, alias="_raw", description="Set to 1 to stream raw file for a ready job"),
     business_id: UUID = Depends(get_current_business_id),
     _feat: None = Depends(_require_export),
     db: AsyncSession = Depends(get_db),
@@ -371,6 +391,58 @@ async def export_analytics_sync(
         raise HTTPException(400, "format must be csv, xlsx, or pdf")
     if report not in ("revenue", "top_items", "profit_loss", "cash_flow"):
         raise HTTPException(400, "invalid report type")
+
+    # If a job_id is provided, support polling for Celery task status and streaming the
+    # generated file when ready. This keeps the mobile client async polling flow working.
+    if job_id:
+        try:
+            async_res = celery.AsyncResult(job_id)
+            state = (async_res.state or "PENDING").lower()
+        except Exception:
+            raise HTTPException(400, "invalid job_id")
+
+        if raw:
+            # Stream raw file content when job is ready
+            if state != "success":
+                raise HTTPException(404, "export not ready")
+            result = async_res.result or {}
+            # Ensure the job belongs to the requesting business
+            result_business = result.get("business_id") if isinstance(result, dict) else None
+            if result_business and result_business != str(business_id):
+                raise HTTPException(403, "forbidden")
+            file_path = result.get("file_path") if isinstance(result, dict) else None
+            if not file_path:
+                raise HTTPException(404, "export file not found")
+            from fastapi.responses import Response
+
+            p = Path(file_path)
+            if not p.exists():
+                raise HTTPException(404, "export file not found on disk")
+            if p.suffix == ".csv":
+                media_type = "text/csv"
+            elif p.suffix == ".xlsx":
+                media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            else:
+                media_type = "application/pdf"
+            content = p.read_bytes()
+            filename = p.name
+            return Response(content=content, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+        # Non-raw polling response — return JSON status and a download_url when ready
+        base = str(request.base_url).rstrip("/")
+        if state == "success":
+            result = async_res.result or {}
+            # Ensure the job belongs to the requesting business
+            result_business = result.get("business_id") if isinstance(result, dict) else None
+            if result_business and result_business != str(business_id):
+                raise HTTPException(403, "forbidden")
+            file_path = result.get("file_path") if isinstance(result, dict) else None
+            if file_path:
+                download_url = f"{base}/api/v1/analytics/export/download?job_id={job_id}&_raw=1"
+            else:
+                download_url = None
+            return {"job_id": job_id, "status": "ready", "download_url": download_url}
+        return {"job_id": job_id, "status": state}
 
     svc = AnalyticsService(db)
     if report == "revenue":

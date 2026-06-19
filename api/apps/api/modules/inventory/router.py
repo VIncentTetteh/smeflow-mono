@@ -12,7 +12,6 @@ from apps.api.core.dependencies import (
     RequireRole,
     get_current_business_id,
     get_current_user_id,
-    require_kyc_verified,
 )
 from apps.api.modules.inventory.schemas import (
     BatchLookupRequest,
@@ -43,7 +42,6 @@ async def create_item(
     business_id: UUID = Depends(get_current_business_id),
     user_id: UUID = Depends(get_current_user_id),
     _role: str = Depends(RequireRole("owner", "manager")),
-    _kyc: None = Depends(require_kyc_verified),
     db: AsyncSession = Depends(get_db),
 ) -> ItemResponse:
     svc = InventoryService(db)
@@ -57,7 +55,6 @@ async def bulk_import_items(
     business_id: UUID = Depends(get_current_business_id),
     user_id: UUID = Depends(get_current_user_id),
     _role: str = Depends(RequireRole("owner", "manager")),
-    _kyc: None = Depends(require_kyc_verified),
     db: AsyncSession = Depends(get_db),
 ) -> BulkImportResult:
     """
@@ -221,7 +218,6 @@ async def update_item(
     business_id: UUID = Depends(get_current_business_id),
     user_id: UUID = Depends(get_current_user_id),
     _role: str = Depends(RequireRole("owner", "manager")),
-    _kyc: None = Depends(require_kyc_verified),
     db: AsyncSession = Depends(get_db),
 ) -> ItemResponse:
     svc = InventoryService(db)
@@ -235,7 +231,6 @@ async def delete_item(
     business_id: UUID = Depends(get_current_business_id),
     user_id: UUID = Depends(get_current_user_id),
     _role: str = Depends(RequireRole("owner", "manager")),
-    _kyc: None = Depends(require_kyc_verified),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     svc = InventoryService(db)
@@ -271,7 +266,6 @@ async def create_category(
     body: CategoryCreate,
     business_id: UUID = Depends(get_current_business_id),
     _role: str = Depends(RequireRole("owner", "manager")),
-    _kyc: None = Depends(require_kyc_verified),
     db: AsyncSession = Depends(get_db),
 ) -> CategoryResponse:
     svc = InventoryService(db)
@@ -288,7 +282,6 @@ async def import_items_csv(
     business_id: UUID = Depends(get_current_business_id),
     user_id: UUID = Depends(get_current_user_id),
     _role: str = Depends(RequireRole("owner", "manager")),
-    _kyc: None = Depends(require_kyc_verified),
     _feat: None = Depends(_require_bulk_csv_import),
     db: AsyncSession = Depends(get_db),
 ) -> dict:

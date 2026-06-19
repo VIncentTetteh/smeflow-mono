@@ -10,7 +10,12 @@ settings = get_settings()
 
 
 class TestGRATaxCalculation:
-    """Verify GRA tax breakdown is computed correctly for given subtotals."""
+    """Verify GRA tax breakdown is computed correctly for standalone (B2B) invoices.
+
+    Standalone invoices add tax on top of the entered unit_price (tax-exclusive).
+    POS sale receipts use tax-inclusive pricing (tax extracted from sell_price).
+    Current GRA rates: VAT 12.5%, NHIL 2.5%, GETFund 1%, COVID levy 1% = 17% combined.
+    """
 
     def _compute(self, subtotal: Decimal) -> dict:
         vat = round(subtotal * Decimal(str(settings.VAT_RATE)), 2)
@@ -20,25 +25,26 @@ class TestGRATaxCalculation:
         total = subtotal + vat + nhil + getfund + covid
         return {"vat": vat, "nhil": nhil, "getfund": getfund, "covid": covid, "total": total}
 
-    def test_vat_rate_is_15_percent(self):
+    def test_vat_rate_is_12_point_5_percent(self):
         result = self._compute(Decimal("100"))
-        assert result["vat"] == Decimal("15.00")
+        assert result["vat"] == Decimal("12.50")
 
     def test_nhil_rate_is_2_point_5_percent(self):
         result = self._compute(Decimal("100"))
         assert result["nhil"] == Decimal("2.50")
 
-    def test_getfund_rate_is_2_point_5_percent(self):
+    def test_getfund_rate_is_1_percent(self):
         result = self._compute(Decimal("100"))
-        assert result["getfund"] == Decimal("2.50")
+        assert result["getfund"] == Decimal("1.00")
 
     def test_covid_levy_is_1_percent(self):
         result = self._compute(Decimal("100"))
         assert result["covid"] == Decimal("1.00")
 
     def test_total_on_100_ghs_subtotal(self):
+        # 100 + 12.50 + 2.50 + 1.00 + 1.00 = 117.00
         result = self._compute(Decimal("100"))
-        assert result["total"] == Decimal("121.00")
+        assert result["total"] == Decimal("117.00")
 
     def test_zero_subtotal(self):
         result = self._compute(Decimal("0"))
@@ -47,9 +53,8 @@ class TestGRATaxCalculation:
 
     def test_large_subtotal_precision(self):
         result = self._compute(Decimal("12345.67"))
-        # Total should be ~21% higher (15 + 2.5 + 2.5 + 1 = 21%)
+        # Total should be 17% higher (12.5 + 2.5 + 1 + 1 = 17%)
         assert result["total"] > Decimal("12345.67")
-        # Sum of taxes
         tax_sum = result["vat"] + result["nhil"] + result["getfund"] + result["covid"]
         assert result["total"] == Decimal("12345.67") + tax_sum
 
@@ -63,11 +68,11 @@ def test_invoice_pdf_builder_returns_pdf_bytes():
         supplier_tin="C0012345678",
         customer_name="Akosua Asante",
         subtotal=Decimal("100.00"),
-        vat_amount=Decimal("15.00"),
+        vat_amount=Decimal("12.50"),
         nhil_amount=Decimal("2.50"),
-        getfund_amount=Decimal("2.50"),
+        getfund_amount=Decimal("1.00"),
         covid_levy=Decimal("1.00"),
-        total=Decimal("121.00"),
+        total=Decimal("117.00"),
         verification_id="VERIFY123",
         line_items=[
             SimpleNamespace(

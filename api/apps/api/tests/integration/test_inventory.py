@@ -232,55 +232,58 @@ class TestInventoryKYCGate:
         await db_session.flush()
         return user, business
 
-    async def test_unverified_business_cannot_create_item(
+    async def test_unverified_business_can_create_item(
         self, async_client: AsyncClient, db_session
     ):
+        # Inventory setup (adding items, categories) is basic business setup, not a
+        # financial operation. KYC gates only financial operations (sales, credit, tax).
         user, business = await self._create_unverified_business(db_session)
         resp = await async_client.post(
             "/api/v1/inventory/items",
-            json={"name": "Blocked Item", "unit": "piece", "sell_price": "10.00"},
+            json={"name": "New Item", "unit": "piece", "sell_price": "10.00"},
             headers=_headers(user.id, business.id),
         )
-        assert resp.status_code == 403
-        assert resp.json()["error"]["code"] == "KYC_VERIFICATION_REQUIRED"
-        assert "KYC verification required" in resp.json()["error"]["message"]
+        assert resp.status_code == 201
 
-    async def test_unverified_business_cannot_bulk_import(
+    async def test_unverified_business_can_bulk_import(
         self, async_client: AsyncClient, db_session
     ):
         user, business = await self._create_unverified_business(db_session)
         resp = await async_client.post(
             "/api/v1/inventory/items/bulk",
-            json={"items": [{"name": "Blocked Bulk", "unit": "piece", "sell_price": "10.00"}]},
+            json={"items": [{"name": "Bulk Item", "unit": "piece", "sell_price": "10.00"}]},
             headers=_headers(user.id, business.id),
         )
-        assert resp.status_code == 403
-        assert "KYC verification required" in resp.json()["error"]["message"]
+        assert resp.status_code in (201, 202)
 
-    async def test_unverified_business_cannot_create_category(
+    async def test_unverified_business_can_create_category(
         self, async_client: AsyncClient, db_session
     ):
         user, business = await self._create_unverified_business(db_session)
         resp = await async_client.post(
             "/api/v1/inventory/categories",
-            json={"name": "Blocked Category"},
+            json={"name": "New Category"},
             headers=_headers(user.id, business.id),
         )
-        assert resp.status_code == 403
-        assert "KYC verification required" in resp.json()["error"]["message"]
+        assert resp.status_code == 201
 
-    async def test_unverified_business_cannot_import_csv(
+    async def test_unverified_business_csv_import_gated_by_feature_flag(
         self, async_client: AsyncClient, db_session
     ):
+        # CSV import requires the bulk_csv_import feature flag (separate from KYC).
+        # Without the feature flag enabled, the endpoint returns 402/403 (feature gate),
+        # not a KYC error.
         user, business = await self._create_unverified_business(db_session)
-        csv_body = "name,unit,cost_price,sell_price\nBlocked CSV,piece,5.00,10.00\n"
+        csv_body = "name,unit,cost_price,sell_price\nCSV Item,piece,5.00,10.00\n"
         resp = await async_client.post(
             "/api/v1/inventory/import/csv",
             files={"file": ("items.csv", csv_body, "text/csv")},
             headers=_headers(user.id, business.id),
         )
-        assert resp.status_code == 403
-        assert "KYC verification required" in resp.json()["error"]["message"]
+        # Either succeeds (feature enabled) or fails with feature gate (not KYC)
+        if resp.status_code not in (200, 201, 202):
+            assert resp.status_code in (402, 403)
+            assert "KYC" not in resp.text
 
     async def test_unverified_business_can_read_and_adjust_existing_stock(
         self, async_client: AsyncClient, db_session
