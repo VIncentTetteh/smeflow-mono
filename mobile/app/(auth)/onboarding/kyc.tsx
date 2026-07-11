@@ -157,11 +157,13 @@ export default function KYCScreen() {
       />
 
       <StyledTextInput
-        autoCapitalize="characters"
+        autoCapitalize="none"
         error={errors.tin}
+        keyboardType="numeric"
         label="TIN (optional)"
+        maxLength={11}
         onChangeText={(value) => {
-          setTin(value);
+          setTin(value.replace(/\D/g, ''));
           setErrors((prev) => ({ ...prev, tin: undefined }));
         }}
         placeholder="12345678901"

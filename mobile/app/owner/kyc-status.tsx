@@ -61,22 +61,26 @@ export default function KycStatusScreen() {
   const businessKyc = useAuthStore((state) => state.businessKyc);
   const userKycStatus = useAuthStore((state) => state.userKycStatus);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['kyc-status'],
     queryFn: fetchKycStatus,
-    // Poll every 10 seconds while pending
+    // Poll every 10 seconds while pending, stop on error
     refetchInterval: (query) => {
+      if (query.state.status === 'error') return false;
       const currentStatus = query.state.data?.status;
       return currentStatus === 'pending' ? 10_000 : false;
     },
+    retry: 2,
   });
 
-  const { data: userKycData, isLoading: userKycLoading } = useQuery({
+  const { data: userKycData, isLoading: userKycLoading, isError: userKycError } = useQuery({
     queryKey: ['user-kyc-status'],
     queryFn: fetchUserKycStatus,
     refetchInterval: (query) => {
+      if (query.state.status === 'error') return false;
       return query.state.data?.kyc_status === 'pending' ? 10_000 : false;
     },
+    retry: 2,
   });
 
   const status: KycStatus = (data?.status as KycStatus | undefined)
@@ -96,43 +100,49 @@ export default function KycStatusScreen() {
           title="Business verification"
           subtitle="Requires Business Registration Number · TIN optional"
         />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontFamily: fonts.bodySemiBold }}>Business KYC</Text>
-          <Badge label={BUSINESS_STATUS_LABEL[status] ?? status} variant={badgeVariant(status)} />
-        </View>
+        {isError ? (
+          <Text style={{ color: colors.danger, fontSize: 13 }}>Could not load status. Check your connection and pull down to retry.</Text>
+        ) : (
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontFamily: fonts.bodySemiBold }}>Business KYC</Text>
+              <Badge label={BUSINESS_STATUS_LABEL[status] ?? status} variant={badgeVariant(status)} />
+            </View>
 
-        {status === 'pending' ? (
-          <Text style={{ color: colors.muted }}>
-            Verification in progress — usually takes a few minutes. This page refreshes automatically.
-          </Text>
-        ) : null}
+            {status === 'pending' ? (
+              <Text style={{ color: colors.muted }}>
+                Verification in progress — usually takes a few minutes. This page refreshes automatically.
+              </Text>
+            ) : null}
 
-        {status === 'failed' ? (
-          <View style={{ gap: spacing.sm }}>
-            <Text style={{ color: colors.danger, fontFamily: fonts.bodySemiBold }}>Verification failed</Text>
-            <Text style={{ color: colors.muted }}>
-              {data?.failure_reason ?? businessKyc?.failure_reason ?? 'Contact support for details.'}
-            </Text>
-            <Button
-              label="Re-submit business KYC"
-              variant="soft"
-              onPress={() => router.push('/owner/kyc-business')}
-            />
-          </View>
-        ) : null}
+            {status === 'failed' ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={{ color: colors.danger, fontFamily: fonts.bodySemiBold }}>Verification failed</Text>
+                <Text style={{ color: colors.muted }}>
+                  {data?.failure_reason ?? businessKyc?.failure_reason ?? 'Contact support for details.'}
+                </Text>
+                <Button
+                  label="Re-submit business KYC"
+                  variant="soft"
+                  onPress={() => router.push('/owner/kyc-business')}
+                />
+              </View>
+            ) : null}
 
-        {status === 'verified' ? (
-          <Text style={{ color: colors.brand }}>
-            Verified{data?.reviewed_at ? ` on ${new Date(data.reviewed_at).toLocaleDateString()}` : ''}
-          </Text>
-        ) : null}
+            {status === 'verified' ? (
+              <Text style={{ color: colors.brand }}>
+                Verified{data?.reviewed_at ? ` on ${new Date(data.reviewed_at).toLocaleDateString()}` : ''}
+              </Text>
+            ) : null}
 
-        {status === 'not_submitted' ? (
-          <Button
-            label="Start business verification"
-            onPress={() => router.push('/owner/kyc-business')}
-          />
-        ) : null}
+            {status === 'not_submitted' ? (
+              <Button
+                label="Start business verification"
+                onPress={() => router.push('/owner/kyc-business')}
+              />
+            ) : null}
+          </>
+        )}
       </Card>
 
       <Card style={{ gap: spacing.sm }}>
@@ -141,41 +151,47 @@ export default function KycStatusScreen() {
           subtitle="Requires Ghana Card number"
         />
         {userKycLoading ? <CardSkeleton /> : null}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontFamily: fonts.bodySemiBold }}>Personal KYC</Text>
-          <Badge
-            label={USER_STATUS_LABEL[userStatus] ?? userStatus}
-            variant={userStatus === 'verified' ? 'verified' : 'pending'}
-          />
-        </View>
+        {userKycError ? (
+          <Text style={{ color: colors.danger, fontSize: 13 }}>Could not load personal KYC status. Check your connection.</Text>
+        ) : (
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontFamily: fonts.bodySemiBold }}>Personal KYC</Text>
+              <Badge
+                label={USER_STATUS_LABEL[userStatus] ?? userStatus}
+                variant={userStatus === 'verified' ? 'verified' : 'pending'}
+              />
+            </View>
 
-        {userStatus === 'unverified' ? (
-          <Button
-            label="Submit Ghana Card"
-            onPress={() => router.push('/owner/kyc-personal')}
-          />
-        ) : null}
+            {userStatus === 'unverified' ? (
+              <Button
+                label="Submit Ghana Card"
+                onPress={() => router.push('/owner/kyc-personal')}
+              />
+            ) : null}
 
-        {userStatus === 'pending' ? (
-          <Text style={{ color: colors.muted }}>
-            Personal verification in progress — usually takes a few minutes.
-          </Text>
-        ) : null}
+            {userStatus === 'pending' ? (
+              <Text style={{ color: colors.muted }}>
+                Personal verification in progress — usually takes a few minutes.
+              </Text>
+            ) : null}
 
-        {(userStatus === 'failed' || userStatus === 'rejected') ? (
-          <View style={{ gap: spacing.sm }}>
-            <Text style={{ color: colors.danger, fontFamily: fonts.bodySemiBold }}>Verification failed</Text>
-            <Button
-              label="Re-submit Ghana Card"
-              variant="soft"
-              onPress={() => router.push('/owner/kyc-personal')}
-            />
-          </View>
-        ) : null}
+            {(userStatus === 'failed' || userStatus === 'rejected') ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={{ color: colors.danger, fontFamily: fonts.bodySemiBold }}>Verification failed</Text>
+                <Button
+                  label="Re-submit Ghana Card"
+                  variant="soft"
+                  onPress={() => router.push('/owner/kyc-personal')}
+                />
+              </View>
+            ) : null}
 
-        {userStatus === 'verified' ? (
-          <Text style={{ color: colors.brand }}>Verified</Text>
-        ) : null}
+            {userStatus === 'verified' ? (
+              <Text style={{ color: colors.brand }}>Verified</Text>
+            ) : null}
+          </>
+        )}
       </Card>
     </Screen>
   );

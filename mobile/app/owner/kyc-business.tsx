@@ -92,12 +92,13 @@ export default function KycBusinessScreen() {
         />
 
         <StyledTextInput
-          autoCapitalize="characters"
+          autoCapitalize="none"
           error={tinError}
           label="TIN (optional)"
           keyboardType="numeric"
+          maxLength={11}
           onChangeText={(value) => {
-            setTin(value);
+            setTin(value.replace(/\D/g, ''));
             setTinError(undefined);
             setError(null);
           }}
