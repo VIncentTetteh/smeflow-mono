@@ -47,16 +47,20 @@ function ghc(v: number) {
   return `GH₵ ${v.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const TAX = { vat: 0.125, nhil: 0.025, getfund: 0.01, covid: 0.01, combined: 0.175 };
+// Tax rates sum to 17% (0.125+0.025+0.01+0.01). sell_price is tax-INCLUSIVE:
+// customer pays the shelf price, tax is extracted from within it, never added on top.
+const TAX = { vat: 0.125, nhil: 0.025, getfund: 0.01, covid: 0.01, combined: 0.17 };
 
-function computeTax(subtotal: number, hasTax: boolean) {
-  if (!hasTax) return { vatAmt: 0, nhilAmt: 0, getfundAmt: 0, covidAmt: 0, grandTotal: subtotal };
+function computeTax(chargedTotal: number, hasTax: boolean) {
+  if (!hasTax) return { vatAmt: 0, nhilAmt: 0, getfundAmt: 0, covidAmt: 0, grandTotal: chargedTotal, taxBase: chargedTotal };
+  const taxBase = chargedTotal / (1 + TAX.combined);
   return {
-    vatAmt:     subtotal * TAX.vat,
-    nhilAmt:    subtotal * TAX.nhil,
-    getfundAmt: subtotal * TAX.getfund,
-    covidAmt:   subtotal * TAX.covid,
-    grandTotal: subtotal * (1 + TAX.combined),
+    taxBase,
+    vatAmt:     taxBase * TAX.vat,
+    nhilAmt:    taxBase * TAX.nhil,
+    getfundAmt: taxBase * TAX.getfund,
+    covidAmt:   taxBase * TAX.covid,
+    grandTotal: chargedTotal,
   };
 }
 
@@ -80,7 +84,7 @@ function POSCart({
   const business = useAuthStore((s) => s.business);
   const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
   const hasTax = cart.length > 0 && !!business?.tin;
-  const { vatAmt, nhilAmt, getfundAmt, covidAmt, grandTotal } = computeTax(total, hasTax);
+  const { vatAmt, nhilAmt, getfundAmt, covidAmt, grandTotal, taxBase } = computeTax(total, hasTax);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -299,8 +303,8 @@ function POSCart({
         {hasTax && showTaxBreakdown ? (
           <View style={{ gap: 3, marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12, color: colors.muted }}>Subtotal</Text>
-              <Text style={{ fontSize: 12, fontFamily: fonts.mono, color: colors.muted }}>{ghc(total)}</Text>
+              <Text style={{ fontSize: 12, color: colors.muted }}>Pre-tax base</Text>
+              <Text style={{ fontSize: 12, fontFamily: fonts.mono, color: colors.muted }}>{ghc(taxBase)}</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 12, color: colors.muted }}>VAT (12.5%)</Text>
@@ -333,7 +337,7 @@ function POSCart({
         {hasTax && (
           <TouchableOpacity onPress={() => setShowTaxBreakdown((v) => !v)} style={{ marginTop: -5, marginBottom: 10, alignSelf: 'flex-start' }}>
             <Text style={{ fontSize: 11.5, color: colors.muted, fontFamily: fonts.bodySemiBold }}>
-              {showTaxBreakdown ? 'Hide tax breakdown' : `Includes VAT/levies · ${ghc(grandTotal - total)}`}
+              {showTaxBreakdown ? 'Hide tax breakdown' : `Incl. VAT/levies · ${ghc(grandTotal - taxBase)}`}
             </Text>
           </TouchableOpacity>
         )}
@@ -581,22 +585,27 @@ function GhQRStage({
 
 // ─── POS Success / Receipt ─────────────────────────────────────────────────────
 function POSSuccess({
-  total, subtotal: subtotalProp, cartLines, method, onDone,
+  total, cartLines, method, onDone,
   receiptRef, saleId, isOffline,
   creditDueDate, customerName,
 }: {
-  total: number; subtotal?: number; cartLines: CartLine[]; method: SaleMode | null;
+  total: number; cartLines: CartLine[]; method: SaleMode | null;
   onDone: () => void; receiptRef: string; saleId: string | null; isOffline: boolean;
   creditDueDate?: string; customerName?: string;
 }) {
   const { colors, fonts } = useTheme();
   const business = useAuthStore((s) => s.business);
   const hasTax = !!business?.tin;
-  const subtotal = subtotalProp ?? (hasTax ? total / (1 + TAX.combined) : total);
-  const { vatAmt, nhilAmt, getfundAmt, covidAmt } = computeTax(subtotal, hasTax);
+  // computeTax takes the charged total and extracts the pre-tax base + components
+  const { taxBase, vatAmt, nhilAmt, getfundAmt, covidAmt } = computeTax(total, hasTax);
 
   const invoiceQuery = useInvoiceBySale(saleId);
   const inv = invoiceQuery.data;
+
+  // Show tax breakdown if TIN is set locally OR if the invoice confirms tax was applied
+  const showTaxBreakdown = hasTax || (!!inv && Number(inv.vat_amount) > 0);
+  // Pre-tax base: prefer invoice (authoritative) then local extraction
+  const displaySubtotal = inv ? Number(inv.subtotal) : taxBase;
 
   const displayInvoiceNum = inv?.invoice_number ?? (receiptRef.slice(0, 8).toUpperCase());
   const invoiceReady = !!inv?.invoice_number;
@@ -609,7 +618,7 @@ function POSSuccess({
     const displayGetfund = inv ? Number(inv.getfund_amount) : getfundAmt;
     const displayCovid   = inv ? Number(inv.covid_levy)     : covidAmt;
     const displayTotal   = inv ? Number(inv.total)          : total;
-    const displaySub     = inv ? Number(inv.subtotal)       : subtotal;
+    const displaySub     = inv ? Number(inv.subtotal)       : taxBase;
     const itemLines = (inv?.line_items?.length
       ? inv.line_items.map((l) => `${l.description}  GH₵ ${Number(l.line_total).toFixed(2)}`)
       : cartLines.map((l) => `${l.item.name} x${l.qty}  GH₵ ${((l.unitPrice ?? l.item.sellPrice) * l.qty).toFixed(2)}`)
@@ -628,7 +637,7 @@ function POSSuccess({
       '',
       ...itemLines,
       '',
-      `Subtotal      GH₵ ${displaySub.toFixed(2)}`,
+      hasTax ? `Pre-tax base  GH₵ ${displaySub.toFixed(2)}` : `Subtotal      GH₵ ${displaySub.toFixed(2)}`,
       ...taxLines,
       `Total         GH₵ ${displayTotal.toFixed(2)}`,
       method === 'credit' ? `Balance due ${inv?.due_date ? new Date(inv.due_date).toLocaleDateString('en-GH') : creditDueDate}` : `Paid via ${methodLabel}`,
@@ -714,10 +723,10 @@ function POSSuccess({
             ))}
             <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 6 }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 11.5, color: colors.muted }}>Subtotal</Text>
-              <Text style={{ fontSize: 11.5, fontFamily: fonts.mono, color: colors.muted }}>GH₵ {subtotal.toFixed(2)}</Text>
+              <Text style={{ fontSize: 11.5, color: colors.muted }}>{showTaxBreakdown ? 'Pre-tax base' : 'Subtotal'}</Text>
+              <Text style={{ fontSize: 11.5, fontFamily: fonts.mono, color: colors.muted }}>GH₵ {displaySubtotal.toFixed(2)}</Text>
             </View>
-            {hasTax && (
+            {showTaxBreakdown && (
               <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 11.5, color: colors.muted }}>VAT (12.5%)</Text>
@@ -817,6 +826,7 @@ export default function SellScreen() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [paystackIntent, setPaystackIntent] = useState<PaystackSaleIntentResult | null>(null);
+  const paystackPollCountRef = useRef(0);
   const [showScanner, setShowScanner] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
   const scanLockedRef = useRef(false);
@@ -847,7 +857,17 @@ export default function SellScreen() {
 
   useEffect(() => {
     if (stage !== 'paystack' || !paystackIntent?.paymentId || paystackIntent.saleId || ['failed', 'reversed'].includes(paystackIntent.status)) return;
-    const timer = setInterval(() => void checkPaystackPayment(false), 3000);
+    paystackPollCountRef.current = 0;
+    const MAX_POLLS = 60; // 3 minutes at 3s intervals
+    const timer = setInterval(() => {
+      paystackPollCountRef.current += 1;
+      if (paystackPollCountRef.current >= MAX_POLLS) {
+        clearInterval(timer);
+        Alert.alert('Payment timeout', 'No payment detected after 3 minutes. Tap "Check payment now" to retry manually.');
+        return;
+      }
+      void checkPaystackPayment(false);
+    }, 3000);
     return () => clearInterval(timer);
   }, [stage, paystackIntent?.paymentId, paystackIntent?.saleId, paystackIntent?.status]);
 
@@ -1079,7 +1099,6 @@ export default function SellScreen() {
       {stage === 'success' && (
         <POSSuccess
           total={grandTotal}
-          subtotal={subtotal}
           cartLines={cart}
           method={method}
           onDone={resetSale}
