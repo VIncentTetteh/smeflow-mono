@@ -120,7 +120,7 @@ export default function SettingsScreen() {
         Linking.openURL('https://wa.me/233240007654');
         break;
       case 'About SMEFlow':
-        Alert.alert('SMEFlow', 'Version 0.42.1\nBuilt for Ghana\'s SMEs\n© 2026 SMEFlow Inc.');
+        Alert.alert('SMEFlow', `Version ${Constants.expoConfig?.version ?? '?'}\nBuilt for Ghana's SMEs\n© 2026 SMEFlow Inc.`);
         break;
     }
   }

@@ -15,6 +15,7 @@ let mockBarcodeCallback: ((result: { data: string }) => void) | undefined;
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => callback(),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
 }));
 
 jest.mock('expo-camera', () => ({

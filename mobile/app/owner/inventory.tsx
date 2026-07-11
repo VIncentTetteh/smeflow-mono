@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -378,6 +379,7 @@ function perfRange() {
 
 export default function InventoryScreen() {
   const { colors, fonts, spacing } = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { items, loading, reload } = useLocalItems();
   const createItem = useCreateItem();
@@ -829,7 +831,7 @@ export default function InventoryScreen() {
                 })()
               )}
               <TouchableOpacity
-                onPress={() => {/* navigate to analytics */}}
+                onPress={() => router.push('/owner/analytics')}
                 style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 }}
               >
                 <MaterialCommunityIcons name="trending-up" size={14} color={colors.brand} />

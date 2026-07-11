@@ -46,7 +46,7 @@ function timeNow() {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function ChatBubble({ msg, onConfirm }: { msg: Msg; onConfirm?: () => void }) {
+function ChatBubble({ msg, onConfirm, onEdit }: { msg: Msg; onConfirm?: () => void; onEdit?: () => void }) {
   const { colors, fonts } = useTheme();
   const isMe = msg.who === 'me';
 
@@ -86,7 +86,7 @@ function ChatBubble({ msg, onConfirm }: { msg: Msg; onConfirm?: () => void }) {
               }}>
                 <Text style={{ fontSize: 12.5, fontFamily: fonts.bodySemiBold, color: '#fff' }}>{p.action || 'Yes, record'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{
+              <TouchableOpacity onPress={onEdit} style={{
                 paddingVertical: 7, paddingHorizontal: 14, borderRadius: 8,
                 borderWidth: 1, borderColor: colors.border,
               }}>
@@ -226,7 +226,13 @@ export default function AssistantScreen() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
   const activeLang = LANGUAGE_OPTIONS.find((l) => l.code === language)?.label ?? 'English';
+
+  function dismissIntent(msgId: string) {
+    setMsgs((m) => m.filter((msg) => msg.id !== msgId));
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
 
   // Load history once on mount — backend stores { role, text, ... } not { content }
   useEffect(() => {
@@ -430,7 +436,13 @@ export default function AssistantScreen() {
               </Text>
             </View>
           )}
-          {msgs.map((m) => <ChatBubble key={m.id} msg={m} />)}
+          {msgs.map((m) => (
+            <ChatBubble
+              key={m.id}
+              msg={m}
+              onEdit={m.kind === 'intent' ? () => dismissIntent(m.id) : undefined}
+            />
+          ))}
           {processMessage.isPending && <TypingDots />}
         </ScrollView>
 
@@ -463,6 +475,7 @@ export default function AssistantScreen() {
             borderRadius: 999, height: 38, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
           }}>
             <TextInput
+              ref={inputRef}
               value={input}
               onChangeText={setInput}
               onSubmitEditing={() => send(input)}

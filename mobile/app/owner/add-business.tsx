@@ -53,7 +53,8 @@ export default function AddBusinessScreen() {
         businessId: data.business.id,
         role: 'owner',
       });
-      queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ['businesses'] });
+      await queryClient.invalidateQueries({ queryKey: ['session'] });
       router.replace('/owner');
     } catch (err) {
       if (is402Error(err)) {
