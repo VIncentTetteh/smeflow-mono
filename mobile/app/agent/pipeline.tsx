@@ -66,13 +66,27 @@ export default function PipelineScreen() {
     );
   }, [query, traders]);
 
+  if (tradersQuery.isError) {
+    return (
+      <Screen>
+        <SectionHeader title="Pipeline" subtitle="Could not load traders" />
+        <Card style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.danger, fontFamily: fonts.bodySemiBold }}>Could not load pipeline</Text>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>Check your connection and pull down to retry.</Text>
+        </Card>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <SectionHeader title="Pipeline" subtitle={`${traders.length} trader${traders.length !== 1 ? 's' : ''} · KYC and activation status`} />
       <StyledTextInput onChangeText={setQuery} placeholder="Search trader or phone" value={query} />
       <Card style={{ gap: 0, padding: 0 }}>
-        {filtered.length === 0 ? (
-          <Text style={{ color: colors.muted, padding: spacing.md }}>No traders match your search.</Text>
+        {tradersQuery.isLoading ? (
+          <Text style={{ color: colors.muted, padding: spacing.md }}>Loading traders…</Text>
+        ) : filtered.length === 0 ? (
+          <Text style={{ color: colors.muted, padding: spacing.md }}>{query ? 'No traders match your search.' : 'No traders yet.'}</Text>
         ) : null}
         {filtered.map((trader, i) => {
           const isHighlighted = trader.businessId === highlight;

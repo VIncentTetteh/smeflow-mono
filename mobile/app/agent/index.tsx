@@ -191,7 +191,8 @@ export default function AgentScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity
                 onPress={() => {
-                  setWithdrawAmount(Number(wallet?.available_balance ?? 0).toFixed(2));
+                  const bal = parseFloat(String(wallet?.available_balance ?? '0'));
+                  setWithdrawAmount(isFinite(bal) ? bal.toFixed(2) : '0.00');
                   setShowWithdrawModal(true);
                 }}
                 disabled={!wallet?.eligible_for_payout}
@@ -317,17 +318,18 @@ export default function AgentScreen() {
               />
             </View>
             <TouchableOpacity
-              disabled={withdraw.isPending || !withdrawAmount || Number(withdrawAmount) <= 0}
+              disabled={withdraw.isPending || !withdrawAmount || !isFinite(Number(withdrawAmount)) || Number(withdrawAmount) <= 0}
               onPress={() => {
                 const amt = Number(withdrawAmount);
-                const max = Number(wallet?.available_balance ?? 0);
+                const max = parseFloat(String(wallet?.available_balance ?? '0'));
+                if (!isFinite(amt) || amt <= 0) { Alert.alert('Invalid amount', 'Enter a valid withdrawal amount.'); return; }
                 if (amt > max) { Alert.alert('Exceeds balance', `Max withdrawal is ${money(max)}.`); return; }
                 withdraw.mutate({ amount: amt }, {
                   onSuccess: () => { setShowWithdrawModal(false); setWithdrawAmount(''); Alert.alert('Withdrawal initiated', 'Funds will arrive in your MoMo within minutes.'); },
                   onError: (e: Error) => Alert.alert('Withdrawal failed', e.message ?? 'Please try again.'),
                 });
               }}
-              style={{ height: 46, borderRadius: 12, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', opacity: (withdraw.isPending || !withdrawAmount || Number(withdrawAmount) <= 0) ? 0.6 : 1 }}
+              style={{ height: 46, borderRadius: 12, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', opacity: (withdraw.isPending || !withdrawAmount || !isFinite(Number(withdrawAmount)) || Number(withdrawAmount) <= 0) ? 0.6 : 1 }}
             >
               {withdraw.isPending ? <ActivityIndicator size="small" color={colors.ink} /> : <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: colors.ink }}>Withdraw</Text>}
             </TouchableOpacity>

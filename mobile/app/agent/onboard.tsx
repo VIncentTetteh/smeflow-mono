@@ -229,10 +229,11 @@ export default function OnboardScreen() {
           result={successResult}
           onDone={resetForm}
           onKYC={() => {
-            // In a full implementation this would navigate to a KYC sub-screen
-            // pre-filled with the trader's businessId
-            Alert.alert('KYC', `Navigate to KYC screen for business ${successResult.businessId}`);
-            resetForm();
+            Alert.alert(
+              'KYC documents',
+              'Ask the trader to open their own SMEflow app and complete verification under Settings → KYC, or take photos of documents to submit later.',
+              [{ text: 'OK', onPress: resetForm }]
+            );
           }}
         />
       </Screen>
