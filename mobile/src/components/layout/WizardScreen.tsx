@@ -113,6 +113,7 @@ export function WizardScreen({
         >
           {onBack ? (
             <TouchableOpacity
+              disabled={continueLoading}
               onPress={onBack}
               style={{
                 height: 50,
@@ -122,6 +123,7 @@ export function WizardScreen({
                 borderColor: colors.border,
                 alignItems: 'center',
                 justifyContent: 'center',
+                opacity: continueLoading ? 0.4 : 1,
               }}
             >
               <Text style={{ fontFamily: fonts.bodySemiBold, color: colors.muted, fontSize: 15 }}>

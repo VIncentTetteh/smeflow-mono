@@ -81,7 +81,7 @@ export function SaleDetailSheet({ saleId, onClose }: Props) {
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={onClose} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={recordCreditPayment.isPending || createRepaymentIntent.isPending || voidSaleMut.isPending ? undefined : onClose} />
         <View
           style={{
             backgroundColor: colors.surface,
@@ -305,8 +305,20 @@ export function SaleDetailSheet({ saleId, onClose }: Props) {
                     <Text style={{ color: colors.ink, fontFamily: fonts.bodySemiBold }}>Collect repayment</Text>
                     <TextInput value={repaymentAmount} onChangeText={setRepaymentAmount} keyboardType="decimal-pad" placeholder={`Amount up to ${ghc(sale.balance_due)}`} placeholderTextColor={colors.muted} style={{ height: 42, borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 10, color: colors.ink }} />
                     <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TouchableOpacity onPress={() => recordCreditPayment.mutate({ sale_id: String(sale.id), amount: Number(repaymentAmount), payment_method: 'cash' }, { onSuccess: () => setRepaymentAmount(''), onError: (e: Error) => Alert.alert('Payment not recorded', e.message) })} style={{ flex: 1, height: 42, borderRadius: 9, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>Record manual payment</Text></TouchableOpacity>
-                      <TouchableOpacity onPress={() => createRepaymentIntent.mutate({ sale_id: String(sale.id), amount: Number(repaymentAmount), idempotency_key: `credit-${Date.now()}` }, { onSuccess: (intent) => intent.payment_url && Share.share({ message: intent.payment_url }), onError: (e: Error) => Alert.alert('Paystack link not created', e.message) })} style={{ flex: 1, height: 42, borderRadius: 9, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand }}>Create Paystack payment</Text></TouchableOpacity>
+                      <TouchableOpacity
+                        disabled={recordCreditPayment.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0}
+                        onPress={() => recordCreditPayment.mutate({ sale_id: String(sale.id), amount: Number(repaymentAmount), payment_method: 'cash' }, { onSuccess: () => setRepaymentAmount(''), onError: (e: Error) => Alert.alert('Payment not recorded', e.message) })}
+                        style={{ flex: 1, height: 42, borderRadius: 9, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', opacity: recordCreditPayment.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0 ? 0.5 : 1 }}
+                      >
+                        <Text style={{ color: '#fff' }}>{recordCreditPayment.isPending ? 'Recording…' : 'Record manual payment'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        disabled={createRepaymentIntent.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0}
+                        onPress={() => createRepaymentIntent.mutate({ sale_id: String(sale.id), amount: Number(repaymentAmount), idempotency_key: `credit-${Date.now()}` }, { onSuccess: (intent) => intent.payment_url && Share.share({ message: intent.payment_url }), onError: (e: Error) => Alert.alert('Paystack link not created', e.message) })}
+                        style={{ flex: 1, height: 42, borderRadius: 9, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center', opacity: createRepaymentIntent.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0 ? 0.5 : 1 }}
+                      >
+                        <Text style={{ color: colors.brand }}>{createRepaymentIntent.isPending ? 'Creating…' : 'Create Paystack payment'}</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 )}
@@ -358,16 +370,23 @@ export function SaleDetailSheet({ saleId, onClose }: Props) {
                 {!isVoided && sale.status === 'paid' && (
                   <TouchableOpacity
                     disabled={voidSaleMut.isPending}
-                    onPress={() =>
-                      Alert.alert('Void sale?', 'This will reverse the sale and cannot be undone.', [
+                    onPress={() => {
+                      const hasUnpaidCredit = sale.payment_method === 'credit' && Number(sale.balance_due) > 0;
+                      const msg = hasUnpaidCredit
+                        ? `This sale has an unpaid balance of GH₵ ${Number(sale.balance_due).toFixed(2)}. Voiding it will remove the debt record. This cannot be undone.`
+                        : 'This will reverse the sale and cannot be undone.';
+                      Alert.alert('Void sale?', msg, [
                         { text: 'Cancel', style: 'cancel' },
                         {
                           text: 'Void',
                           style: 'destructive',
-                          onPress: () => voidSaleMut.mutate(String(sale.id), { onSuccess: onClose }),
+                          onPress: () => voidSaleMut.mutate(String(sale.id), {
+                            onSuccess: onClose,
+                            onError: (e: Error) => Alert.alert('Could not void sale', e.message),
+                          }),
                         },
-                      ])
-                    }
+                      ]);
+                    }}
                     style={{
                       height: 44, borderRadius: 12,
                       borderWidth: 1, borderColor: '#dc2626',

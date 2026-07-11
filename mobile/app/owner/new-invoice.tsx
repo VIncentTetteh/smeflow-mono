@@ -39,13 +39,17 @@ export default function NewInvoiceScreen() {
   }
 
   function handleSubmit() {
+    const validLines = lines.filter((l) => l.desc.trim() && Number(l.price) > 0);
+    if (validLines.length === 0) {
+      Alert.alert('No line items', 'Add at least one item with a description and price.');
+      return;
+    }
     generateInvoice.mutate(
       {
         customer_name: customerName.trim() || undefined,
         customer_tin: customerTin.trim() || undefined,
         invoice_type: invoiceType,
-        line_items: lines
-          .filter((l) => l.desc.trim() && Number(l.price) > 0)
+        line_items: validLines
           .map((l) => ({
             description: l.desc.trim(),
             qty: String(Number(l.qty) || 1),
