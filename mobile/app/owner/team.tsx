@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -46,18 +46,24 @@ export default function TeamScreen() {
       { phone: trimmed, role: inviteRole },
       {
         onSuccess: () => setPhone(''),
+        onError: (e: Error) => Alert.alert('Could not send invite', e.message ?? 'Please try again.'),
       }
     );
   }
 
   function handleRoleChange(member: BusinessMember, role: Extract<MemberRole, 'manager' | 'staff'>) {
     if (!canManage || member.role === 'owner') return;
-    updateMember.mutate({ memberId: member.id, role });
+    updateMember.mutate(
+      { memberId: member.id, role },
+      { onError: (e: Error) => Alert.alert('Could not update role', e.message ?? 'Please try again.') }
+    );
   }
 
   function handleDeactivate(member: BusinessMember) {
     if (!canManage || member.role === 'owner') return;
-    deactivateMember.mutate(member.id, {});
+    deactivateMember.mutate(member.id, {
+      onError: (e: Error) => Alert.alert('Could not deactivate member', e.message ?? 'Please try again.'),
+    });
   }
 
   const inviteDisabled = !canManage || !phone.trim() || inviteMember.isPending;

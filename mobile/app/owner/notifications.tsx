@@ -40,14 +40,19 @@ export default function NotificationsScreen() {
   }
 
   function setOperationalPush(value: boolean) {
-    updatePrefs.mutate({
-      push_enabled: value,
-      event_prefs: {
-        'sync.failed': { push: value },
-        'credit.offer': { push: value },
-        'kyc_reviewed': { push: value },
+    updatePrefs.mutate(
+      {
+        push_enabled: value,
+        event_prefs: {
+          'sync.failed': { push: value },
+          'credit.offer': { push: value },
+          'kyc_reviewed': { push: value },
+        },
       },
-    });
+      {
+        onError: () => Alert.alert('Error', 'Could not update notification preferences. Try again.'),
+      }
+    );
   }
 
   function eventTitle(event: NotificationEventResponseDto) {

@@ -1,4 +1,4 @@
-import { ActivityIndicator, Modal, Pressable, ScrollView, Switch, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Switch, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -80,7 +80,12 @@ export default function MoreScreen() {
     switchBusiness.mutate(businessId, {
       onSettled: () => {
         setSwitchingId(null);
+      },
+      onSuccess: () => {
         setSwitcherOpen(false);
+      },
+      onError: (e: Error) => {
+        Alert.alert('Could not switch business', e.message ?? 'Please try again.');
       },
     });
   }

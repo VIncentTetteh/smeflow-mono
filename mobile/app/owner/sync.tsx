@@ -33,6 +33,8 @@ export default function SyncScreen() {
     setManualSyncing(true);
     try {
       await syncNow();
+    } catch {
+      // syncNow updates lastSyncError in the sync store; error is displayed in the UI below
     } finally {
       setManualSyncing(false);
     }
