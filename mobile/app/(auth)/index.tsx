@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { requestOtp } from '@/api/auth.api';
@@ -32,6 +33,7 @@ export default function PhoneScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const router = useRouter();
   const { colors, fonts, spacing } = useTheme();
+  const insets = useSafeAreaInsets();
   const setPendingOtpPhone = useAuthStore((state) => state.setPendingOtpPhone);
   const biometricEnabled = useAuthStore((s) => s.biometricEnabled);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -65,7 +67,8 @@ export default function PhoneScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
         style={{ flex: 1 }}
       >
         <ScrollView

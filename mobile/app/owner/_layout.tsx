@@ -3,7 +3,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth';
@@ -34,6 +34,11 @@ export default function OwnerLayout() {
 
     async function registerPush() {
       try {
+        // Push notifications in Expo Go (on Android) are not supported as of SDK 53.
+        // If running in the Expo Go app on Android, skip registration to avoid runtime errors.
+        if (Platform.OS === 'android' && Constants.appOwnership === 'expo') return;
+
+        const Notifications = await import('expo-notifications');
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
         if (existingStatus !== 'granted') {

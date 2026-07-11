@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { requestOtp, verifyOtp } from '@/api/auth.api';
@@ -34,6 +34,7 @@ export default function OTPScreen() {
   const inputRef = useRef<TextInput>(null);
   const router = useRouter();
   const { colors, fonts, spacing } = useTheme();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const setAuth = useAuthStore((state) => state.setAuth);
   const biometricEnabled = useAuthStore((state) => state.biometricEnabled);
@@ -122,7 +123,8 @@ export default function OTPScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
         style={{ flex: 1 }}
       >
         {/* Header with back arrow */}
