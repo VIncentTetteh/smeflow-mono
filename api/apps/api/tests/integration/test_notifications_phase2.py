@@ -187,7 +187,7 @@ async def test_retry_notification_event_rejects_non_retryable_sent_event(
     )
 
     assert response.status_code == 400
-    assert "not retryable" in response.json()["detail"].lower()
+    assert "not retryable" in response.json()["error"]["message"].lower()
 
 
 @pytest.mark.asyncio

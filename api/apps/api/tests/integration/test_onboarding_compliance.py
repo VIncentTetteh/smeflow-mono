@@ -63,10 +63,20 @@ async def test_business_create_accepts_ghana_card_ref_and_normalizes_member_phon
     assert resp.status_code == 201
     business_id = UUID(resp.json()["business"]["id"])
 
+    # Team members are a "pro"-tier feature (free/starter staff_limit=1, i.e.
+    # owner-only) — upgrade before inviting a second member.
+    owner_headers = _headers(owner.id, business_id, "owner")
+    upgrade = await async_client.post(
+        "/api/v1/billing/subscription/change",
+        json={"plan": "pro"},
+        headers=owner_headers,
+    )
+    assert upgrade.status_code == 200
+
     invite = await async_client.post(
         "/api/v1/business/members/invite",
         json={"phone": "0244123456", "role": "staff"},
-        headers=_headers(owner.id, business_id, "owner"),
+        headers=owner_headers,
     )
     assert invite.status_code == 201
 
@@ -267,13 +277,27 @@ async def test_business_membership_rejects_agent_role(async_client: AsyncClient,
 async def test_wallet_lifecycle_and_paystack_disbursement(
     async_client: AsyncClient, auth_headers, monkeypatch
 ):
-    from libs.payment_clients.base import DisbursementResponse
-    from libs.payment_clients.paystack import PaystackClient
+    from libs.payment_clients import providers as payment_providers
+    from libs.payment_clients.base import DisbursementResponse, PaymentProvider
 
-    async def fake_disburse(self, amount, phone, reference, description):
-        return DisbursementResponse(external_ref="ps-disburse-1", status="pending")
+    class FakeDisburseClient(PaymentProvider):
+        async def request_payment(self, amount, phone, reference, description):
+            raise NotImplementedError
 
-    monkeypatch.setattr(PaystackClient, "disburse", fake_disburse)
+        async def check_status(self, external_ref):
+            raise NotImplementedError
+
+        async def disburse(self, amount, phone, reference, description):
+            return DisbursementResponse(external_ref="ps-disburse-1", status="pending")
+
+        def verify_webhook(self, payload, signature):
+            return False
+
+    # get_payment_provider() falls back to UnsupportedProvider when
+    # PAYSTACK_SECRET_KEY isn't configured (conftest sets it to "" for tests),
+    # so patching PaystackClient.disburse directly is a no-op here — the
+    # endpoint never gets a PaystackClient instance to call it on.
+    monkeypatch.setattr(payment_providers, "get_payment_provider", lambda provider: FakeDisburseClient())
 
     add = await async_client.post(
         "/api/v1/business/momo-accounts",
@@ -303,7 +327,7 @@ async def test_wallet_lifecycle_and_paystack_disbursement(
         headers=auth_headers,
     )
     assert disburse.status_code == 201
-    assert disburse.json()["external_ref"] == "mtn-disburse-1"
+    assert disburse.json()["external_ref"] == "ps-disburse-1"
 
 
 @pytest.mark.asyncio
