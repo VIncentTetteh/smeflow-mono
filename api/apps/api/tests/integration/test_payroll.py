@@ -136,3 +136,115 @@ async def test_payroll_disbursement_skips_when_paystack_is_unconfigured(
         )
     )
     assert result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_payroll_attendance_payslip_and_p9_reports(
+    async_client: AsyncClient, auth_headers: dict
+) -> None:
+    """Cover payroll endpoints with no prior test coverage: list employees,
+    single + bulk attendance, attendance list/summary, payslip PDF redirect,
+    the pay-single-payslip conflict path, and the P9A/P9B GRA reports."""
+    await _upgrade_to_starter(async_client, auth_headers)
+
+    employee = await async_client.post(
+        "/api/v1/payroll/employees",
+        json={
+            "name": "Report Worker",
+            "pay_type": "monthly",
+            "base_pay": "1500.00",
+            # Intentionally no momo_phone/phone — exercises the "no MoMo number"
+            # conflict path on /pay below instead of requiring a Paystack mock.
+            "tier2_enrolled": True,
+        },
+        headers=auth_headers,
+    )
+    assert employee.status_code == 201
+    employee_id = employee.json()["id"]
+
+    listed = await async_client.get("/api/v1/payroll/employees", headers=auth_headers)
+    assert listed.status_code == 200
+    assert any(e["id"] == employee_id for e in listed.json())
+
+    single = await async_client.post(
+        f"/api/v1/payroll/employees/{employee_id}/attendance",
+        json={"date": "2026-06-01", "status": "present"},
+        headers=auth_headers,
+    )
+    assert single.status_code == 201
+
+    bulk = await async_client.post(
+        "/api/v1/payroll/attendance/bulk",
+        json={
+            "records": [
+                {"employee_id": employee_id, "date": "2026-06-02", "status": "present"},
+                {"employee_id": employee_id, "date": "2026-06-03", "status": "half_day"},
+            ]
+        },
+        headers=auth_headers,
+    )
+    assert bulk.status_code == 201
+
+    attendance_list = await async_client.get(
+        f"/api/v1/payroll/employees/{employee_id}/attendance"
+        "?date_from=2026-06-01&date_to=2026-06-03",
+        headers=auth_headers,
+    )
+    assert attendance_list.status_code == 200
+    assert len(attendance_list.json()) == 3
+
+    summary = await async_client.get(
+        "/api/v1/payroll/attendance/summary?period_start=2026-06-01&period_end=2026-06-03",
+        headers=auth_headers,
+    )
+    assert summary.status_code == 200
+    worker_summary = next(
+        row for row in summary.json() if row["employee_id"] == employee_id
+    )
+    assert worker_summary["present"] == 2
+    assert worker_summary["half_day"] == 1
+    assert worker_summary["absent"] == 0
+
+    run = await async_client.post(
+        "/api/v1/payroll/runs",
+        json={"period_start": "2026-06-01", "period_end": "2026-06-30"},
+        headers=auth_headers,
+    )
+    assert run.status_code == 201
+
+    payslips = await async_client.get(
+        f"/api/v1/payroll/runs/{run.json()['id']}/payslips",
+        headers=auth_headers,
+    )
+    assert payslips.status_code == 200
+    payslip_id = payslips.json()[0]["id"]
+
+    pdf = await async_client.get(
+        f"/api/v1/payroll/payslips/{payslip_id}/pdf",
+        headers=auth_headers,
+        follow_redirects=False,
+    )
+    assert pdf.status_code in (302, 307)
+    assert pdf.headers["location"].startswith("local://payslips/")
+
+    pay = await async_client.post(
+        f"/api/v1/payroll/payslips/{payslip_id}/pay",
+        headers=auth_headers,
+    )
+    assert pay.status_code == 409
+    assert "no MoMo number" in str(pay.json())
+
+    p9a = await async_client.get(
+        "/api/v1/payroll/reports/p9a?year=2026",
+        headers=auth_headers,
+    )
+    assert p9a.status_code == 200
+
+    p9b = await async_client.get(
+        "/api/v1/payroll/reports/p9b?year=2026",
+        headers=auth_headers,
+    )
+    assert p9b.status_code == 200
+    # Report Worker is tier2_enrolled=True and had a June 2026 payslip, so
+    # they must appear in the P9B (Tier 2 pension) report.
+    assert "Report Worker" in str(p9b.json())
