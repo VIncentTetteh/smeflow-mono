@@ -272,6 +272,50 @@ class TestGetInvoice:
         assert data["ghqr_payload"]
         assert data["digital_signature"]
 
+    async def test_sale_linked_invoice_uses_tax_inclusive_pricing(
+        self, async_client: AsyncClient, auth_headers: dict, seeded_item
+    ):
+        """generate_from_sale must extract tax from the sale total (Item.sell_price
+        is tax-INCLUSIVE), not add tax on top of it — this is the opposite
+        convention from generate_standalone/create_debit_note. Regression guard
+        for the tax model fix in sell.tsx / InvoicingService.generate_from_sale."""
+        sale_resp = await async_client.post(
+            "/api/v1/sales/record",
+            json={
+                "items": [{"item_id": str(seeded_item.id), "qty": "2", "unit_price": "12.00"}],
+                "payment_method": "cash",
+                "idempotency_key": "invoice-tax-inclusive-check",
+            },
+            headers=auth_headers,
+        )
+        assert sale_resp.status_code == 201
+        sale_id = sale_resp.json()["sale_id"]
+
+        invoice_resp = await async_client.get(
+            f"/api/v1/invoices/by-sale/{sale_id}", headers=auth_headers
+        )
+        assert invoice_resp.status_code == 200
+        data = invoice_resp.json()
+
+        # Total is exactly what the customer paid: 2 * 12.00 = 24.00 (tax-inclusive).
+        assert Decimal(data["total"]) == Decimal("24.00")
+        # Pre-tax base = total / 1.17 (combined VAT 12.5% + NHIL 2.5% + GETFund 1% + covid levy 1%).
+        assert Decimal(data["subtotal"]) == Decimal("20.51")
+        assert Decimal(data["vat_amount"]) == Decimal("2.56")
+        assert Decimal(data["nhil_amount"]) == Decimal("0.51")
+        assert Decimal(data["getfund_amount"]) == Decimal("0.21")
+        assert Decimal(data["covid_levy"]) == Decimal("0.21")
+        # Components must sum back to the original total — proves tax was extracted,
+        # not added on top (which would inflate total beyond what the customer paid).
+        components_sum = (
+            Decimal(data["subtotal"])
+            + Decimal(data["vat_amount"])
+            + Decimal(data["nhil_amount"])
+            + Decimal(data["getfund_amount"])
+            + Decimal(data["covid_levy"])
+        )
+        assert components_sum == Decimal(data["total"])
+
     async def test_invoice_pdf_and_send_paths(
         self, async_client: AsyncClient, auth_headers: dict, db_session, monkeypatch
     ):
