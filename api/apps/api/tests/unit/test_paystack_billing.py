@@ -68,7 +68,9 @@ class TestHandlePaystackWebhook:
             service, "_update_subscription_tier", new_callable=AsyncMock
         ) as mock_update:
             await service.handle_paystack_webhook(payload)
-            mock_update.assert_called_once_with("biz-123", "starter")
+            # billing_interval is read from data/customer metadata.billing_interval,
+            # absent from this payload, so it's passed through as None.
+            mock_update.assert_called_once_with("biz-123", "starter", None)
 
     @pytest.mark.asyncio
     async def test_handle_paystack_webhook_subscription_disabled_downgrades_to_free(self):
