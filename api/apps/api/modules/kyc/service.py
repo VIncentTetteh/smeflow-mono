@@ -35,7 +35,10 @@ class KYCService:
         verification.user_id = user_id
         verification.tin = data.tin
         verification.business_registration_ref = data.business_registration_ref
-        verification.documents = data.documents  # type: ignore[assignment]  # JSONB accepts list[KYCDocument]
+        # JSONB needs plain JSON-serializable values, not Pydantic model instances —
+        # assigning data.documents directly crashes the request with a 500 as soon
+        # as a submission includes any document.
+        verification.documents = [doc.model_dump(mode="json") for doc in data.documents]
         verification.status = "pending"
         verification.failure_reason = None
         verification.submitted_at = datetime.now(timezone.utc)

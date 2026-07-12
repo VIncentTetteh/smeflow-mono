@@ -33,7 +33,11 @@ class KYCVerification(Base):
     provider: Mapped[str | None] = mapped_column(String(50))
     provider_ref: Mapped[str | None] = mapped_column(String(100))
     failure_reason: Mapped[str | None] = mapped_column(Text)
-    documents: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # A list of KYCDocument dicts (see kyc/schemas.py KYCResponse.documents) — the
+    # default must be a list, not {}, or KYCResponse.model_validate() 500s on any
+    # row that was never routed through KYCService.submit() (which always sets
+    # documents=data.documents, itself a list).
+    documents: Mapped[list] = mapped_column(JSONB, default=list)
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
