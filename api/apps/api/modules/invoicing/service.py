@@ -298,6 +298,14 @@ class InvoicingService:
         """
         Create an invoice not linked to any sale — for B2B, proforma, or manual billing.
         line_items: [{"description": str, "qty": Decimal, "unit_price": Decimal, "unit": str|None}]
+
+        NOTE: unlike generate_from_sale (which treats Item.sell_price as tax-
+        INCLUSIVE and extracts tax from the total), unit_price here is tax-
+        EXCLUSIVE — a pre-tax base entered manually on the invoice form — and tax
+        is added on top. This matches the mobile new-invoice.tsx form, which
+        labels the computed total "Subtotal" and notes VAT/NHIL/GETFund are
+        "calculated automatically". This is an intentional, separate pricing
+        convention for manual invoices, not a bug — see Item.sell_price docstring.
         """
         await self._check_invoice_limit(business_id)
         business_result = await self.db.execute(select(Business).where(Business.id == business_id))
@@ -390,7 +398,13 @@ class InvoicingService:
         invoice_id: UUID,
         line_items: list[dict],
     ) -> Invoice:
-        """Issue a linked debit note that increases the amount due on an immutable invoice."""
+        """
+        Issue a linked debit note that increases the amount due on an immutable invoice.
+
+        Uses the same tax-EXCLUSIVE unit_price convention as generate_standalone
+        (tax added on top of the entered price), not the tax-inclusive model used
+        by generate_from_sale — see the note there and Item.sell_price's docstring.
+        """
         await self._check_invoice_limit(business_id)
         original = await self.get_invoice(business_id, invoice_id)
         if original.status in ("cancelled", "voided"):

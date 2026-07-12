@@ -49,6 +49,13 @@ class Item(Base):
     cost_price: Mapped[Decimal] = mapped_column(
         Numeric(15, 2), nullable=False, default=Decimal("0")
     )
+    # Tax-INCLUSIVE shelf price (what the customer pays at POS). VAT/NHIL/GETFund/
+    # COVID levy are extracted from this total in InvoicingService.generate_from_sale,
+    # not added on top. Manual/standalone invoices (generate_standalone,
+    # create_debit_note) use a separate tax-EXCLUSIVE unit_price entered directly
+    # on the invoice line item — the two entry points are intentionally different
+    # pricing models, matching the mobile UI copy on each ("Pre-tax base" for POS
+    # vs. "Subtotal ... calculated automatically" for manual invoices).
     sell_price: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
     current_stock: Mapped[Decimal] = mapped_column(Numeric(15, 3), default=Decimal("0"))
     low_stock_threshold: Mapped[Decimal] = mapped_column(Numeric(15, 3), default=Decimal("5"))
