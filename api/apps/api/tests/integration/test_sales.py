@@ -1,11 +1,16 @@
 """Integration tests for Sales module: period summary, sale recording, void."""
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+
+# credit_due_date must be strictly after "today" (see SaleCreate.validate_payment) —
+# compute relative to the test run instead of a fixed date that eventually lands
+# in the past.
+CREDIT_DUE_DATE = (date.today() + timedelta(days=30)).isoformat()
 
 
 @pytest.mark.asyncio
@@ -143,7 +148,7 @@ class TestSaleRecording:
                 "payment_method": "credit",
                 "customer_name": "Ama Owusu",
                 "customer_phone": "+233200111222",
-                "credit_due_date": "2026-06-11",
+                "credit_due_date": CREDIT_DUE_DATE,
                 "idempotency_key": str(uuid4()),
             },
             headers=auth_headers,
@@ -155,11 +160,11 @@ class TestSaleRecording:
         listed = await async_client.get("/api/v1/sales", headers=auth_headers)
         assert listed.status_code == 200
         credit_sale = next(row for row in listed.json() if row["id"] == data["sale_id"])
-        assert credit_sale["credit_due_date"].startswith("2026-06-11")
+        assert credit_sale["credit_due_date"].startswith(CREDIT_DUE_DATE)
 
         detail = await async_client.get(f"/api/v1/sales/{data['sale_id']}", headers=auth_headers)
         assert detail.status_code == 200
-        assert detail.json()["credit_due_date"].startswith("2026-06-11")
+        assert detail.json()["credit_due_date"].startswith(CREDIT_DUE_DATE)
 
     async def test_record_momo_sale_is_rejected_for_unified_checkout(
         self, async_client: AsyncClient, auth_headers: dict, seeded_item, db_session
@@ -380,7 +385,7 @@ class TestSaleRecording:
                 "payment_method": "credit",
                 "customer_name": "Ama Owusu",
                 "customer_phone": "+233200111222",
-                "credit_due_date": "2026-06-11",
+                "credit_due_date": CREDIT_DUE_DATE,
                 "idempotency_key": str(uuid4()),
             },
             headers=auth_headers,
@@ -425,7 +430,7 @@ class TestSaleRecording:
                 "payment_method": "credit",
                 "customer_name": "Ama Owusu",
                 "customer_phone": "+233200111222",
-                "credit_due_date": "2026-06-11",
+                "credit_due_date": CREDIT_DUE_DATE,
                 "idempotency_key": str(uuid4()),
             },
             headers=auth_headers,

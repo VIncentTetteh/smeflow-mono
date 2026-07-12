@@ -3,6 +3,7 @@ Integration test: Sale idempotency — submitting the same sale twice must not
 create duplicate records or deduct stock twice.
 """
 
+from datetime import date, timedelta
 from uuid import uuid4
 
 import pytest
@@ -52,6 +53,8 @@ class TestSaleIdempotency:
             "payment_method": "credit",
             "customer_name": "Kwame Mensah",
             "customer_phone": "+233244777888",
+            # Required by SaleCreate.validate_payment when payment_method is "credit".
+            "credit_due_date": (date.today() + timedelta(days=30)).isoformat(),
             "idempotency_key": str(uuid4()),
         }
         resp = await async_client.post("/api/v1/sales/record", json=payload, headers=auth_headers)
