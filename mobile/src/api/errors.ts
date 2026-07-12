@@ -49,10 +49,6 @@ export function toApiErrorMessage(error: unknown): string {
   return normalizeApiError(error).message;
 }
 
-export function isKycRequiredError(error: unknown): boolean {
-  return normalizeApiError(error).code === 'KYC_VERIFICATION_REQUIRED';
-}
-
 export function is402Error(error: unknown): boolean {
   return normalizeApiError(error).status === 402;
 }
