@@ -243,7 +243,10 @@ class TaxService:
 
         due_year = year + (1 if month == 12 else 0)
         due_month = 1 if month == 12 else month + 1
-        due_day = min(30, calendar.monthrange(due_year, due_month)[1])
+        # Must match calendar()'s VAT due_date (last working day of the following
+        # month) — these previously diverged (this used a flat "30th" heuristic),
+        # showing a different GRA filing deadline on the summary vs. calendar screens.
+        due_date = self._last_working_day(due_year, due_month)
 
         return {
             "period": f"{year}-{month:02d}",
@@ -258,7 +261,7 @@ class TaxService:
             "status": tr.status,
             "paye_withheld": paye_withheld,
             "estimated_income_tax": estimated_income_tax,
-            "due_date": date(due_year, due_month, due_day),
+            "due_date": due_date,
             "filing_readiness": {
                 "has_generated_return": True,
                 "has_gra_ref": bool(tr.gra_ref),
