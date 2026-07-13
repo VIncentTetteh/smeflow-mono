@@ -12,10 +12,19 @@ interface ProviderChipProps {
   style?: ViewStyle;
 }
 
+// Single source of truth for MTN/Vodafone(Telecel)/AirtelTigo brand colors —
+// also consumed directly by app/owner/payments-history.tsx so both files
+// render the same provider colors instead of maintaining separate copies.
+export const PAYMENT_PROVIDER_BRAND_COLORS: Record<'mtn' | 'vodafone' | 'airteltigo', string> = {
+  mtn: '#f6c600',
+  vodafone: '#d71920',
+  airteltigo: '#0072ce',
+};
+
 const providerConfig: Record<PaymentProvider, { label: string; mark: string; color: string }> = {
-  mtn: { label: 'MTN MoMo', mark: 'MTN', color: '#f6c600' },
-  telecel: { label: 'Telecel Cash', mark: 'TC', color: '#d71920' },
-  at: { label: 'AT Money', mark: 'AT', color: '#0072ce' },
+  mtn: { label: 'MTN MoMo', mark: 'MTN', color: PAYMENT_PROVIDER_BRAND_COLORS.mtn },
+  telecel: { label: 'Telecel Cash', mark: 'TC', color: PAYMENT_PROVIDER_BRAND_COLORS.vodafone },
+  at: { label: 'AT Money', mark: 'AT', color: PAYMENT_PROVIDER_BRAND_COLORS.airteltigo },
   cash: { label: 'Cash', mark: 'GHc', color: '#1f6a4f' },
   ghqr: { label: 'GhQR', mark: 'QR', color: '#5b6be5' },
 };

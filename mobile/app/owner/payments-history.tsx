@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
+import { PAYMENT_PROVIDER_BRAND_COLORS } from '@/components/ui/ProviderChip';
 import { useTheme } from '@/lib/theme';
 import { useCancelMerchantSettlement, useGenerateGhQR, usePaymentsWorkspace, useRequestMerchantSettlement, useSettlementPreview } from '@/api/hooks/featureHooks';
 import { useAddMomoAccount, useProvisionDedicatedAccount, useVerifyMomoAccount } from '@/api/hooks/sessionHooks';
@@ -12,9 +13,9 @@ import { useAuthStore } from '@/store/auth';
 import type { MerchantLedgerEntryDto, MerchantSettlementDto } from '@/types/settlements';
 
 const PROVIDER_COLORS: Record<string, { bg: string; fg: string }> = {
-  mtn:      { bg: '#f6c600', fg: '#1a1208' },
-  vodafone: { bg: '#d71920', fg: '#fff' },
-  airteltigo: { bg: '#0072ce', fg: '#fff' },
+  mtn:        { bg: PAYMENT_PROVIDER_BRAND_COLORS.mtn, fg: '#1a1208' },
+  vodafone:   { bg: PAYMENT_PROVIDER_BRAND_COLORS.vodafone, fg: '#fff' },
+  airteltigo: { bg: PAYMENT_PROVIDER_BRAND_COLORS.airteltigo, fg: '#fff' },
 };
 
 function providerColor(provider: string) {
@@ -48,11 +49,14 @@ function shortDate(value?: string | null) {
   return new Date(value).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function statusColor(status: string, colors: { brand: string; danger: string; muted: string; ink: string }) {
+function statusColor(
+  status: string,
+  colors: { brand: string; danger: string; muted: string; ink: string; gold: string }
+) {
   const normalized = status.toLowerCase();
   if (['completed', 'paid', 'verified'].includes(normalized)) return colors.brand;
   if (['failed', 'cancelled', 'reversed'].includes(normalized)) return colors.danger;
-  if (['processing', 'approved'].includes(normalized)) return '#7a5a14';
+  if (['processing', 'approved'].includes(normalized)) return colors.gold;
   return colors.muted;
 }
 
