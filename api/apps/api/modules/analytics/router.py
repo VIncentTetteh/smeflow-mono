@@ -406,11 +406,15 @@ async def export_analytics_sync(
             if state != "success":
                 raise HTTPException(404, "export not ready")
             result = async_res.result or {}
-            # Ensure the job belongs to the requesting business
-            result_business = result.get("business_id") if isinstance(result, dict) else None
-            if result_business and result_business != str(business_id):
-                raise HTTPException(403, "forbidden")
-            file_path = result.get("file_path") if isinstance(result, dict) else None
+            # Fail closed: business_id must be present on the result and match the
+            # caller, otherwise treat as not found (404, not 403, to avoid job-id
+            # enumeration).
+            if not isinstance(result, dict):
+                raise HTTPException(404, "export not found")
+            result_business = result.get("business_id")
+            if not result_business or result_business != str(business_id):
+                raise HTTPException(404, "export not found")
+            file_path = result.get("file_path")
             if not file_path:
                 raise HTTPException(404, "export file not found")
             from fastapi.responses import Response
@@ -432,11 +436,15 @@ async def export_analytics_sync(
         base = str(request.base_url).rstrip("/")
         if state == "success":
             result = async_res.result or {}
-            # Ensure the job belongs to the requesting business
-            result_business = result.get("business_id") if isinstance(result, dict) else None
-            if result_business and result_business != str(business_id):
-                raise HTTPException(403, "forbidden")
-            file_path = result.get("file_path") if isinstance(result, dict) else None
+            # Fail closed: business_id must be present on the result and match the
+            # caller, otherwise treat as not found (404, not 403, to avoid job-id
+            # enumeration).
+            if not isinstance(result, dict):
+                raise HTTPException(404, "export not found")
+            result_business = result.get("business_id")
+            if not result_business or result_business != str(business_id):
+                raise HTTPException(404, "export not found")
+            file_path = result.get("file_path")
             if file_path:
                 download_url = f"{base}/api/v1/analytics/export/download?job_id={job_id}&_raw=1"
             else:
