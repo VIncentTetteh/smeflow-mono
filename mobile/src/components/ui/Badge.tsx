@@ -12,15 +12,18 @@ type BadgeVariant =
   | 'verified'
   | 'draft';
 
+export type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
 interface BadgeProps {
-  variant: BadgeVariant;
+  variant?: BadgeVariant;
+  tone?: BadgeTone;
   label: string;
 }
 
-export function Badge({ variant, label }: BadgeProps) {
+export function Badge({ variant, tone, label }: BadgeProps) {
   const { colors, fonts, radii, spacing } = useTheme();
 
-  const config: { [key in BadgeVariant]: { bg: string; text: string } } = {
+  const variantConfig: { [key in BadgeVariant]: { bg: string; text: string } } = {
     paid: { bg: `${colors.brand}1a`, text: colors.brand },
     pending: { bg: `${colors.gold}33`, text: '#8a6a00' },
     failed: { bg: `${colors.danger}1a`, text: colors.danger },
@@ -31,7 +34,18 @@ export function Badge({ variant, label }: BadgeProps) {
     draft: { bg: `${colors.ink}14`, text: colors.ink },
   };
 
-  const { bg, text } = config[variant];
+  // Tone mirrors the fg/bg convention already established by the home-screen
+  // AlertRow component (app/owner/index.tsx) so status coloring is identical
+  // wherever it appears in the app.
+  const toneConfig: { [key in BadgeTone]: { bg: string; text: string } } = {
+    success: { bg: `${colors.brand}15`, text: colors.brand },
+    warning: { bg: `${colors.gold}18`, text: colors.gold },
+    danger: { bg: `${colors.danger}15`, text: colors.danger },
+    info: { bg: `${colors.info}15`, text: colors.info },
+    neutral: { bg: `${colors.ink}10`, text: colors.muted },
+  };
+
+  const { bg, text } = tone ? toneConfig[tone] : variantConfig[variant ?? 'draft'];
 
   return (
     <View
