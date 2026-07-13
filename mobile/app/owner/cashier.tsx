@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/lib/theme';
+import { categoryTileColors as TILE_COLORS } from '@/lib/tokens';
 import { useLocalItems } from '@/features/localData';
 import type { CartLine, LocalItem } from '@/features/localData';
 import { createPaystackSaleIntentFromCart, recordSaleOnlineFirst } from '@/features/onlineSales';
@@ -15,8 +16,6 @@ import { buildSaleDraft, type SellMode } from '@/features/sellCart';
 import { CreditTermsForm, creditDateAfter } from '@/components/sales/CreditTermsForm';
 
 type Tab = 'sell' | 'queue' | 'shift';
-
-const TILE_COLORS = ['#dc2626', '#0f6d4f', '#d4a23a', '#1d4ed8', '#7c2d12', '#0891b2', '#a16207', '#92400e', '#15803d', '#b91c1c', '#6b6860', '#1f6a4f'];
 
 const CASHIER_TAX = { vat: 0.125, nhil: 0.025, getfund: 0.01, covid: 0.01, combined: 0.175 };
 

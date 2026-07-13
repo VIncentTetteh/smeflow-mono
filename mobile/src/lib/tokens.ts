@@ -41,4 +41,12 @@ export const radii = {
   full: 999,
 } as const;
 
+// Decorative-only palette for rotating cart-tile swatches (e.g. cashier quick-tap
+// grid). Not semantic — do not map these to BadgeTone/status meaning.
+export const categoryTileColors = [
+  '#dc2626', '#0f6d4f', '#d4a23a', '#1d4ed8',
+  '#7c2d12', '#0891b2', '#a16207', '#92400e',
+  '#15803d', '#b91c1c', '#6b6860', '#1f6a4f',
+] as const;
+
 export type ColorScheme = 'warm' | 'dark';
