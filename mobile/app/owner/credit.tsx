@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { type LoanProduct } from '@/api/credit.api';
 import { Text } from '@/components/ui/Text';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import {
   buildCreditInsights,
   buildLoanEmptyState,
@@ -18,24 +19,24 @@ import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 
 const MAX_SCORE = 100;
 
-const LOAN_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  pending_partner: { label: 'Awaiting Lender', color: '#b6831e', bg: '#fff5cc' },
-  approved:        { label: 'Approved',         color: '#2eb585', bg: '#e6f7f1' },
-  rejected:        { label: 'Rejected',         color: '#b8351c', bg: '#fdecea' },
-  confirmed:       { label: 'Confirmed',        color: '#1a73e8', bg: '#e8f0fe' },
-  disbursing:      { label: 'Disbursing',       color: '#d4a23a', bg: '#fff5cc' },
-  active:          { label: 'Active',           color: '#2eb585', bg: '#e6f7f1' },
-  repaid:          { label: 'Repaid',           color: '#5c6b7a', bg: '#f0f3f5' },
-  defaulted:       { label: 'Defaulted',        color: '#b8351c', bg: '#fdecea' },
-  cancelled:       { label: 'Cancelled',        color: '#5c6b7a', bg: '#f0f3f5' },
+const LOAN_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
+  pending_partner: { label: 'Awaiting Lender', tone: 'warning' },
+  approved:        { label: 'Approved',         tone: 'success' },
+  rejected:        { label: 'Rejected',         tone: 'danger' },
+  confirmed:       { label: 'Confirmed',        tone: 'info' },
+  disbursing:      { label: 'Disbursing',       tone: 'warning' },
+  active:          { label: 'Active',           tone: 'success' },
+  repaid:          { label: 'Repaid',           tone: 'neutral' },
+  defaulted:       { label: 'Defaulted',        tone: 'danger' },
+  cancelled:       { label: 'Cancelled',        tone: 'neutral' },
 };
 
-const INSTALMENT_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  pending:    { label: 'Due',        color: '#b6831e', bg: '#fff5cc' },
-  collecting: { label: 'Processing', color: '#1a73e8', bg: '#e8f0fe' },
-  paid:       { label: 'Paid',       color: '#2eb585', bg: '#e6f7f1' },
-  failed:     { label: 'Failed',     color: '#b8351c', bg: '#fdecea' },
-  defaulted:  { label: 'Overdue',    color: '#b8351c', bg: '#fdecea' },
+const INSTALMENT_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
+  pending:    { label: 'Due',        tone: 'warning' },
+  collecting: { label: 'Processing', tone: 'info' },
+  paid:       { label: 'Paid',       tone: 'success' },
+  failed:     { label: 'Failed',     tone: 'danger' },
+  defaulted:  { label: 'Overdue',    tone: 'danger' },
 };
 
 export default function CreditScreen() {
@@ -251,12 +252,8 @@ export default function CreditScreen() {
                     <Text style={{ fontSize: 11, color: colors.muted }}>{req.term_days}-day term · tap for details</Text>
                   </View>
                   {(() => {
-                    const s = LOAN_STATUS[req.status] ?? { label: req.status, color: '#5c6b7a', bg: '#f0f3f5' };
-                    return (
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: s.bg }}>
-                        <Text style={{ fontSize: 10, fontFamily: fonts.bodySemiBold, color: s.color }}>{s.label}</Text>
-                      </View>
-                    );
+                    const s = LOAN_STATUS[req.status] ?? { label: req.status, tone: 'neutral' as BadgeTone };
+                    return <Badge tone={s.tone} label={s.label} />;
                   })()}
                 </TouchableOpacity>
               ))}
@@ -394,13 +391,11 @@ export default function CreditScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ gap: 7, marginBottom: 14 }}>
                   {(() => {
-                    const st = LOAN_STATUS[loanDetail.status] ?? { label: loanDetail.status, color: '#5c6b7a', bg: '#f0f3f5' };
+                    const st = LOAN_STATUS[loanDetail.status] ?? { label: loanDetail.status, tone: 'neutral' as BadgeTone };
                     return (
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ fontSize: 12, color: colors.muted }}>Status</Text>
-                        <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: st.bg }}>
-                          <Text style={{ fontSize: 11, fontFamily: fonts.bodySemiBold, color: st.color }}>{st.label}</Text>
-                        </View>
+                        <Badge tone={st.tone} label={st.label} />
                       </View>
                     );
                   })()}
@@ -442,10 +437,10 @@ export default function CreditScreen() {
                           </Text>
                           <Text style={{ fontSize: 12, fontFamily: fonts.mono, color: colors.ink }}>GH₵ {Number(inst.amount ?? 0).toLocaleString()}</Text>
                           {(() => {
-                            const is = INSTALMENT_STATUS[inst.status ?? 'pending'] ?? { label: inst.status ?? 'due', color: '#b6831e', bg: '#fff5cc' };
+                            const is = INSTALMENT_STATUS[inst.status ?? 'pending'] ?? { label: inst.status ?? 'due', tone: 'warning' as BadgeTone };
                             return (
-                              <View style={{ marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: is.bg }}>
-                                <Text style={{ fontSize: 9, fontFamily: fonts.bodySemiBold, color: is.color }}>{is.label}</Text>
+                              <View style={{ marginLeft: 8 }}>
+                                <Badge tone={is.tone} label={is.label} />
                               </View>
                             );
                           })()}
