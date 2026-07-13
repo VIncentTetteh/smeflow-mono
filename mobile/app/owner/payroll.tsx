@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { Text } from '@/components/ui/Text';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { useTheme } from '@/lib/theme';
 import {
   useApprovePayrollRun,
@@ -100,9 +101,9 @@ export default function PayrollScreen() {
 
   function statusColor(status?: string) {
     if (status === 'disbursed') return colors.brand;
-    if (status === 'completed') return '#f59e0b';
-    if (status === 'approved') return '#10b981';
-    if (status === 'processing') return '#6366f1';
+    if (status === 'completed') return colors.gold;
+    if (status === 'approved') return colors.brand;
+    if (status === 'processing') return colors.info;
     return colors.muted;
   }
 
@@ -557,25 +558,7 @@ export default function PayrollScreen() {
                       GH₵ {Number(emp.base_pay ?? 0).toLocaleString()}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View
-                        style={{
-                          paddingHorizontal: 7,
-                          paddingVertical: 2,
-                          borderRadius: 999,
-                          backgroundColor:
-                            status === 'paid' ? `${colors.brand}15` : '#fff5cc',
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontFamily: fonts.bodySemiBold,
-                            color: status === 'paid' ? colors.brand : '#b6831e',
-                          }}
-                        >
-                          {status === 'paid' ? 'Paid' : 'Pending'}
-                        </Text>
-                      </View>
+                      <Badge tone={status === 'paid' ? 'success' : 'warning'} label={status === 'paid' ? 'Paid' : 'Pending'} />
                       <TouchableOpacity onPress={() => openEdit(emp)} hitSlop={8}>
                         <MaterialCommunityIcons
                           name="pencil-outline"
@@ -881,10 +864,10 @@ export default function PayrollScreen() {
                         const slipStatus = payslipStatus(slip, run.status);
                         const isPaying = paySlip.isPending && paySlip.variables === String(slip.id);
 
-                        const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
-                          paid:    { bg: `${colors.brand}15`, color: colors.brand,  label: 'Paid' },
-                          pending: { bg: '#fff5cc',           color: '#b6831e',     label: 'Pending' },
-                          skipped: { bg: '#fee2e2',           color: '#dc2626',     label: 'Skipped' },
+                        const statusStyles: Record<string, { tone: BadgeTone; label: string }> = {
+                          paid:    { tone: 'success', label: 'Paid' },
+                          pending: { tone: 'warning', label: 'Pending' },
+                          skipped: { tone: 'danger',  label: 'Skipped' },
                         };
                         const ss = statusStyles[slipStatus];
 
@@ -951,24 +934,7 @@ export default function PayrollScreen() {
                                 >
                                   GH₵ {Math.round(net).toLocaleString()}
                                 </Text>
-                                <View
-                                  style={{
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 2,
-                                    borderRadius: 999,
-                                    backgroundColor: ss.bg,
-                                  }}
-                                >
-                                  <Text
-                                    style={{
-                                      fontSize: 9,
-                                      fontFamily: fonts.bodySemiBold,
-                                      color: ss.color,
-                                    }}
-                                  >
-                                    {ss.label}
-                                  </Text>
-                                </View>
+                                <Badge tone={ss.tone} label={ss.label} />
                               </View>
                             </View>
 

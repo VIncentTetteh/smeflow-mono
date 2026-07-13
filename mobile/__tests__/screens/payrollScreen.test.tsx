@@ -46,9 +46,11 @@ jest.mock('@/lib/theme', () => ({
   useTheme: () => ({
     colors: {
       bg: '#faf8f3', surface: '#fff', border: '#e8e5de', brand: '#1f6a4f',
-      ink: '#2a2a22', muted: '#6b6860', danger: '#b42318',
+      ink: '#2a2a22', muted: '#6b6860', danger: '#b42318', gold: '#d97706', info: '#3b82f6',
     },
     fonts: { body: 'Inter', bodySemiBold: 'InterSemiBold', displaySemiBold: 'Serif', mono: 'Mono' },
+    radii: { full: 999 },
+    spacing: { xs: 4, sm: 8 },
   }),
 }));
 
