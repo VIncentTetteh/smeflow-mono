@@ -31,7 +31,7 @@ describe('Badge', () => {
   });
 
   it('renders all 8 variants without crashing', () => {
-    const variants: Array<React.ComponentProps<typeof Badge>['variant']> = [
+    const variants: Array<NonNullable<React.ComponentProps<typeof Badge>['variant']>> = [
       'paid', 'pending', 'failed', 'synced', 'offline', 'low-stock', 'verified', 'draft'
     ];
     variants.forEach((v) => {
