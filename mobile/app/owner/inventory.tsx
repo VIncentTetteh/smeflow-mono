@@ -148,7 +148,7 @@ function ItemDetail({ item, onBack }: { item: LocalItem; onBack: () => void }) {
         {/* Stock hero */}
         <View style={{
           padding: 14, borderRadius: 16,
-          backgroundColor: isLow ? '#fff5cc' : `${colors.brand}10`,
+          backgroundColor: isLow ? `${colors.gold}18` : `${colors.brand}10`,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>
@@ -157,7 +157,7 @@ function ItemDetail({ item, onBack }: { item: LocalItem; onBack: () => void }) {
               </Text>
               <Text style={{
                 fontFamily: fonts.displaySemiBold, fontSize: 32, marginTop: 2,
-                color: isLow ? '#b6831e' : colors.brand,
+                color: isLow ? colors.gold : colors.brand,
               }}>
                 {item.stockQty}
               </Text>
@@ -449,8 +449,8 @@ export default function InventoryScreen() {
 
   function poStatusColor(status: string) {
     if (status === 'received') return colors.brand;
-    if (status === 'submitted' || status === 'ordered') return '#3b82f6';
-    if (status === 'partially_received') return '#b6831e';
+    if (status === 'submitted' || status === 'ordered') return colors.info;
+    if (status === 'partially_received') return colors.gold;
     if (status === 'cancelled') return colors.danger;
     return colors.muted; // draft
   }
@@ -687,9 +687,9 @@ export default function InventoryScreen() {
                   {t.count != null ? (
                     <View style={{
                       paddingHorizontal: 5, borderRadius: 999,
-                      backgroundColor: t.warn ? '#fff5cc' : sel ? 'rgba(255,255,255,0.15)' : `${colors.ink}10`,
+                      backgroundColor: t.warn ? `${colors.gold}18` : sel ? 'rgba(255,255,255,0.15)' : `${colors.ink}10`,
                     }}>
-                      <Text style={{ fontSize: 10.5, fontFamily: fonts.bodySemiBold, color: t.warn ? '#b6831e' : sel ? '#fdf7eb' : colors.muted }}>
+                      <Text style={{ fontSize: 10.5, fontFamily: fonts.bodySemiBold, color: t.warn ? colors.gold : sel ? '#fdf7eb' : colors.muted }}>
                         {t.count}
                       </Text>
                     </View>
@@ -726,10 +726,10 @@ export default function InventoryScreen() {
                 }}>
                   <View style={{
                     width: 40, height: 40, borderRadius: 10,
-                    backgroundColor: isLow ? '#fff5cc' : `${colors.ink}08`,
+                    backgroundColor: isLow ? `${colors.gold}18` : `${colors.ink}08`,
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: 12, fontFamily: fonts.bodySemiBold, color: isLow ? '#b6831e' : colors.muted }}>
+                    <Text style={{ fontSize: 12, fontFamily: fonts.bodySemiBold, color: isLow ? colors.gold : colors.muted }}>
                       {initials(item.name)}
                     </Text>
                   </View>
@@ -748,10 +748,10 @@ export default function InventoryScreen() {
                     ) : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: isLow ? '#b6831e' : colors.ink }}>
+                    <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: isLow ? colors.gold : colors.ink }}>
                       {item.stockQty}
                     </Text>
-                    <Text style={{ fontSize: 10.5, color: isLow ? '#b6831e' : colors.muted, fontFamily: isLow ? fonts.bodySemiBold : fonts.body }}>
+                    <Text style={{ fontSize: 10.5, color: isLow ? colors.gold : colors.muted, fontFamily: isLow ? fonts.bodySemiBold : fonts.body }}>
                       {isLow ? 'low' : 'in stock'}
                     </Text>
                   </View>
