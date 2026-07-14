@@ -400,7 +400,7 @@ function POSMethod({
             { mode: 'paystack' as SaleMode, icon: 'credit-card-multiple-outline', label: 'Online checkout', sub: 'Adds to payout wallet after confirmation', accent: colors.info },
             { mode: 'cash' as SaleMode, icon: 'cash-multiple', label: 'Cash', sub: 'Take cash', accent: colors.brand },
             { mode: 'ghqr' as SaleMode, icon: 'qrcode', label: 'Manual QR', sub: 'Records sale only', accent: colors.info },
-            { mode: 'credit' as SaleMode, icon: 'file-document', label: 'Credit', sub: 'Pay later', accent: '#b6831e' },
+            { mode: 'credit' as SaleMode, icon: 'file-document', label: 'Credit', sub: 'Pay later', accent: colors.gold },
           ].map((m) => (
             <TouchableOpacity
               key={m.mode}
@@ -414,7 +414,7 @@ function POSMethod({
             >
               <View style={{
                 width: 36, height: 36, borderRadius: 10,
-                backgroundColor: m.mode === 'credit' ? '#fff5cc' : `${m.accent}15`,
+                backgroundColor: m.mode === 'credit' ? `${colors.gold}18` : `${m.accent}15`,
                 alignItems: 'center', justifyContent: 'center',
               }}>
                 <MaterialCommunityIcons name={m.icon as never} size={18} color={m.accent} />
@@ -663,11 +663,11 @@ function POSSuccess({
         </Text>
         {method === 'momo' && !isOffline && (
           <View style={{
-            backgroundColor: '#fff8e1', borderRadius: 10,
+            backgroundColor: `${colors.gold}18`, borderRadius: 10,
             paddingHorizontal: 12, paddingVertical: 7,
             marginTop: 6, marginHorizontal: 24,
           }}>
-            <Text style={{ fontSize: 12, color: '#78350f', textAlign: 'center' }}>
+            <Text style={{ fontSize: 12, color: colors.gold, textAlign: 'center' }}>
               Waiting for customer to approve the MoMo prompt.{'\n'}Sale is recorded — funds confirm automatically.
             </Text>
           </View>
@@ -696,9 +696,9 @@ function POSSuccess({
               <Text style={{ fontFamily: fonts.displaySemiBold, fontSize: 16, color: colors.ink }}>{business?.name ?? 'Your Business'}</Text>
               <View style={{
                 paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
-                backgroundColor: isOffline ? '#fff5cc' : method === 'momo' ? '#fff8e1' : `${colors.brand}15`,
+                backgroundColor: isOffline || method === 'momo' ? `${colors.gold}18` : `${colors.brand}15`,
               }}>
-                <Text style={{ fontSize: 10.5, fontFamily: fonts.bodySemiBold, color: isOffline ? '#b6831e' : method === 'momo' ? '#92650a' : colors.brand }}>
+                <Text style={{ fontSize: 10.5, fontFamily: fonts.bodySemiBold, color: isOffline || method === 'momo' ? colors.gold : colors.brand }}>
                   {isOffline ? 'Queued' : method === 'credit' ? 'Due' : method === 'momo' ? 'Pending' : 'Paid'}
                 </Text>
               </View>
