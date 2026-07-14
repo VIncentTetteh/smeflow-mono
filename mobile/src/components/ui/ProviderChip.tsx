@@ -73,7 +73,7 @@ export function ProviderChip({
       >
         <Text
           style={{
-            color: config.color === '#f6c600' ? colors.ink : '#fff',
+            color: config.color === PAYMENT_PROVIDER_BRAND_COLORS.mtn ? colors.ink : '#fff',
             fontFamily: fonts.bodySemiBold,
             fontSize: 8,
           }}

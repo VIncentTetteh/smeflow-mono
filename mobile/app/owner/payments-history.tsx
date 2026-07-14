@@ -341,7 +341,7 @@ export default function PaymentsScreen() {
                 style={{
                   fontSize: 12,
                   fontFamily: label === 'Manual sales not held' ? fonts.bodySemiBold : fonts.displaySemiBold,
-                  color: label === 'Provider pending' && providerPendingTotal > 0 ? '#7a5a14' : colors.ink,
+                  color: label === 'Provider pending' && providerPendingTotal > 0 ? colors.gold : colors.ink,
                   textAlign: 'right',
                   flexShrink: 0,
                 }}
