@@ -35,7 +35,7 @@ export function getOnboardingSteps(data: OnboardingData): OnboardingStep[] {
       id: 'inventory',
       label: 'Add your first product',
       description: 'Build your inventory to start selling',
-      route: '/owner/stock',
+      route: '/owner/inventory',
       done: data.itemCount > 0,
     },
     {
