@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -43,10 +43,23 @@ export default function CreditScreen() {
   const { colors, fonts } = useTheme();
   const { allowed: creditAllowed, loading: creditLoading } = usePlanGate('credit_scoring');
   const creditReady = !creditLoading && creditAllowed;
-  const { data: scoreData, isLoading: scoreLoading } = useCreditScore(creditReady);
-  const { data: requests } = useCreditRequests(creditReady);
+  const scoreQuery = useCreditScore(creditReady);
+  const { data: scoreData, isLoading: scoreLoading } = scoreQuery;
+  const requestsQuery = useCreditRequests(creditReady);
+  const { data: requests } = requestsQuery;
   const lendersQuery = useActiveLenders(creditReady);
   const lenders = lendersQuery.data ?? [];
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await Promise.all([
+      scoreQuery.refetch(),
+      requestsQuery.refetch(),
+      lendersQuery.refetch(),
+    ]);
+    setRefreshing(false);
+  }
   const applyLoan = useRequestLoan();
 
   const [selectedLender, setSelectedLender] = useState<string | null>(null);
@@ -167,7 +180,11 @@ export default function CreditScreen() {
         <Text style={{ fontSize: 12, color: colors.muted }}>Verified lending partners and score insights</Text>
       </View>
       <PlanGatedScreen feature="credit_scoring">
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 14 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, gap: 14 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+      >
         {/* Score card — dark */}
         <View style={{ backgroundColor: colors.ink, borderRadius: 16, padding: 16, overflow: 'hidden' }}>
           <View style={{ position: 'absolute', top: -20, right: -20, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(212,162,58,0.2)' }} />
