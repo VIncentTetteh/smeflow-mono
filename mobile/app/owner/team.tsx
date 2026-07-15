@@ -74,9 +74,21 @@ export default function TeamScreen() {
 
   function handleDeactivate(member: BusinessMember) {
     if (!canManage || member.role === 'owner') return;
-    deactivateMember.mutate(member.id, {
-      onError: (e: Error) => Alert.alert('Could not deactivate member', e.message ?? 'Please try again.'),
-    });
+    Alert.alert(
+      'Deactivate member?',
+      `${displayName(member)} will lose access to this business immediately.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: () =>
+            deactivateMember.mutate(member.id, {
+              onError: (e: Error) => Alert.alert('Could not deactivate member', e.message ?? 'Please try again.'),
+            }),
+        },
+      ]
+    );
   }
 
   const inviteDisabled = !canManage || !phone.trim() || inviteMember.isPending;

@@ -34,6 +34,7 @@ jest.mock('@expo/vector-icons', () => {
 
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import TeamScreen from '../../app/owner/team';
 import { useAuthStore } from '@/store/auth';
 
@@ -66,11 +67,21 @@ describe('team screen', () => {
     );
   });
 
-  it('lets owners deactivate non-owner members', () => {
+  it('confirms before deactivating a non-owner member', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const buttons = args[2] as Array<{ text: string; onPress?: () => void }> | undefined;
+      buttons?.find((b) => b.text === 'Deactivate')?.onPress?.();
+    });
     const screen = render(<TeamScreen />);
 
     fireEvent.press(screen.getByText('Deactivate'));
 
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Deactivate member?',
+      expect.stringContaining('Kofi Staff'),
+      expect.any(Array)
+    );
     expect(mockDeactivateMutate).toHaveBeenCalledWith('staff-1', expect.any(Object));
+    alertSpy.mockRestore();
   });
 });
