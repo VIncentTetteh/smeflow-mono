@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -35,7 +36,15 @@ type Tab = 'team' | 'history';
 
 export default function PayrollScreen() {
   const { colors, fonts } = useTheme();
-  const { data, isLoading } = usePayroll();
+  const payrollQuery = usePayroll();
+  const { data, isLoading } = payrollQuery;
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await payrollQuery.refetch();
+    setRefreshing(false);
+  }
   const runPayroll = useRunPayroll();
   const createEmp = useCreateEmployee();
   const updateEmp = useUpdateEmployee();
@@ -326,6 +335,7 @@ export default function PayrollScreen() {
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
         >
           {/* Summary card */}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
@@ -643,6 +653,7 @@ export default function PayrollScreen() {
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 32 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
           >
             {/* Tax reports section */}
             <View
