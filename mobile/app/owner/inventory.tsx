@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StatusBar,
   TextInput,
@@ -19,6 +20,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { Text } from '@/components/ui/Text';
 import { type LocalItem, useLocalItems } from '@/features/localData';
+import { syncNow } from '@/db/sync/service';
 import {
   useAdjustStock,
   useCreateItem,
@@ -416,6 +418,26 @@ export default function InventoryScreen() {
   const receivePO = useReceivePurchaseOrder();
   const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      if (section === 'items') {
+        await syncNow();
+        await reload();
+      } else if (section === 'performance') {
+        await topItems.refetch();
+      } else if (section === 'suppliers') {
+        await suppliers.refetch();
+      } else if (section === 'orders') {
+        await purchaseOrders.refetch();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   // Create PO form state (full wiring in Task 7)
   const [showCreatePO, setShowCreatePO] = useState(false);
   const [poStep, setPoStep] = useState<1 | 2 | 3>(1);
@@ -703,7 +725,11 @@ export default function InventoryScreen() {
 
       {/* Item list */}
       {section === 'items' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+        >
           {loading ? (
             <Text style={{ color: colors.muted, marginTop: 16 }}>Loading inventory…</Text>
           ) : null}
@@ -764,7 +790,11 @@ export default function InventoryScreen() {
 
       {/* ── PERFORMANCE TAB ── */}
       {section === 'performance' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+        >
           <Text style={{ fontSize: 11, color: colors.muted, fontFamily: fonts.bodySemiBold, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
             Top items · Last 30 days
           </Text>
@@ -844,7 +874,11 @@ export default function InventoryScreen() {
 
       {/* ── SUPPLIERS TAB ── */}
       {section === 'suppliers' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+        >
           {suppliers.isLoading && (
             <ActivityIndicator color={colors.brand} style={{ marginTop: 32 }} />
           )}
@@ -898,7 +932,11 @@ export default function InventoryScreen() {
 
       {/* ── ORDERS TAB ── */}
       {section === 'orders' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+        >
           {purchaseOrders.isLoading && (
             <ActivityIndicator color={colors.brand} style={{ marginTop: 32 }} />
           )}

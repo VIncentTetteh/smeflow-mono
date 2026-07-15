@@ -78,6 +78,10 @@ jest.mock('@/features/localData', () => ({
   useLocalItems: () => ({ items: mockItems, loading: false, reload: mockReload }),
 }));
 
+jest.mock('@/db/sync/service', () => ({
+  syncNow: jest.fn().mockResolvedValue({ pulled: {}, pushed: {}, errors: [] }),
+}));
+
 jest.mock('@/api/hooks/featureHooks', () => ({
   useAdjustStock: () => ({ isPending: false, mutate: mockAdjustStockMutate }),
   useCreateItem: () => ({ isPending: false, mutate: mockCreateItemMutate }),
@@ -95,7 +99,7 @@ jest.mock('@/api/hooks/featureHooks', () => ({
     refetch: mockRefetch,
   }),
   useThresholdSuggestion: () => ({ isPending: false, mutate: mockMutation }),
-  useTopItems: () => ({ data: [], isLoading: false, isError: false }),
+  useTopItems: () => ({ data: [], isLoading: false, isError: false, refetch: mockRefetch }),
   useUpdateItem: () => ({ isPending: false, mutate: mockMutation }),
   useUpdateSupplier: () => ({ isPending: false, mutate: mockMutation }),
 }));
