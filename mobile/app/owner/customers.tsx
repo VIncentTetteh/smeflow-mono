@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -135,7 +135,16 @@ export default function CustomersScreen() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
 
-  const { data, isLoading } = useCustomers(debouncedSearch || undefined);
+  const customersQuery = useCustomers(debouncedSearch || undefined);
+  const { data, isLoading } = customersQuery;
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await customersQuery.refetch();
+    setRefreshing(false);
+  }
+
   const customers: CustomerListItemDto[] = data?.items ?? [];
 
   return (
@@ -174,7 +183,11 @@ export default function CustomersScreen() {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+      >
         {isLoading ? (
           <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>Loading…</Text>
         ) : customers.length === 0 ? (
