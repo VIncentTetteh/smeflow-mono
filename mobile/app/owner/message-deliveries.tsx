@@ -1,4 +1,5 @@
-import { ActivityIndicator, ScrollView, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,6 +12,13 @@ export default function MessageDeliveriesScreen() {
   const router = useRouter();
   const deliveries = useCustomerDeliveries();
   const retry = useRetryCustomerDelivery();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await deliveries.refetch();
+    setRefreshing(false);
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
@@ -21,7 +29,10 @@ export default function MessageDeliveriesScreen() {
           <Text style={{ color: colors.muted, fontSize: 12 }}>Delivery history retained for 12 months</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, gap: 10 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+      >
         {deliveries.isLoading && <ActivityIndicator color={colors.brand} />}
         {deliveries.isError ? (
           <View style={{ alignItems: 'center', paddingVertical: 32 }}>
