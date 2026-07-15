@@ -47,7 +47,15 @@ function initials(name: string) {
   return name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-function ItemDetail({ item, onBack }: { item: LocalItem; onBack: () => void }) {
+function ItemDetail({
+  item,
+  onBack,
+  reload,
+}: {
+  item: LocalItem;
+  onBack: () => void;
+  reload: () => Promise<void>;
+}) {
   const { colors, fonts, spacing } = useTheme();
   const adjustStock = useAdjustStock();
   const suggestion = useThresholdSuggestion();
@@ -190,7 +198,11 @@ function ItemDetail({ item, onBack }: { item: LocalItem; onBack: () => void }) {
                                     body: { low_stock_threshold: String(data.suggested_threshold) },
                                   },
                                   {
-                                    onSuccess: () => Alert.alert('Updated', 'Low stock threshold updated.'),
+                                    onSuccess: async () => {
+                                      await syncNow();
+                                      await reload();
+                                      Alert.alert('Updated', 'Low stock threshold updated.');
+                                    },
                                     onError: (e: Error) => Alert.alert('Error', e.message),
                                   }
                                 ),
@@ -349,7 +361,13 @@ function ItemDetail({ item, onBack }: { item: LocalItem; onBack: () => void }) {
                 adjustStock.mutate(
                   { item_id: item.id, qty_change: Number(restockQty), reason: 'purchase' },
                   {
-                    onSuccess: () => { setShowRestock(false); setRestockQty(''); Alert.alert('Restocked', `Added ${restockQty} units to ${item.name}.`); },
+                    onSuccess: async () => {
+                      setShowRestock(false);
+                      setRestockQty('');
+                      await syncNow();
+                      await reload();
+                      Alert.alert('Restocked', `Added ${restockQty} units to ${item.name}.`);
+                    },
                     onError: (e: Error) => Alert.alert('Error', e.message),
                   }
                 );
@@ -571,7 +589,7 @@ export default function InventoryScreen() {
   if (selectedItem) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
-        <ItemDetail item={selectedItem} onBack={() => setSelectedItem(null)} />
+        <ItemDetail item={selectedItem} onBack={() => setSelectedItem(null)} reload={reload} />
       </SafeAreaView>
     );
   }
