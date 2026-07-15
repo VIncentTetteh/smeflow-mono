@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -7,6 +7,8 @@ import {
   useDeactivateBusinessMember,
   useInviteBusinessMember,
   useUpdateBusinessMember,
+  fetchSessionBootstrap,
+  applySessionBootstrap,
 } from '@/api/hooks/sessionHooks';
 import { useTheme } from '@/lib/theme';
 import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
@@ -32,6 +34,17 @@ export default function TeamScreen() {
   const deactivateMember = useDeactivateBusinessMember();
   const [phone, setPhone] = useState('');
   const [inviteRole, setInviteRole] = useState<Extract<MemberRole, 'manager' | 'staff'>>('staff');
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const data = await fetchSessionBootstrap();
+      applySessionBootstrap(data);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const canManage = currentRole === 'owner' || currentRole === 'manager';
   const activeMembers = useMemo(
@@ -88,7 +101,11 @@ export default function TeamScreen() {
       </View>
 
       <PlanGatedScreen feature="team">
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 14 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, gap: 14 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
+      >
         <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, gap: 10 }}>
           <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.ink }}>
             Invite by phone
