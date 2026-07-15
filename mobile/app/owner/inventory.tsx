@@ -1120,10 +1120,11 @@ export default function InventoryScreen() {
                     initial_stock: itemStock ? Number(itemStock) : 0,
                   } as never,
                   {
-                    onSuccess: () => {
+                    onSuccess: async () => {
                       setShowAddItem(false);
                       resetItemForm();
-                      void reload();
+                      await syncNow();
+                      await reload();
                       Alert.alert('Added', `${itemName} added to inventory.`);
                     },
                     onError: (e: Error) => Alert.alert('Error', e.message),
