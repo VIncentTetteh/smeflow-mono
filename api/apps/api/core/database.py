@@ -3,6 +3,8 @@ Async SQLAlchemy engine + session factory.
 All database interaction goes through AsyncSession obtained via get_db().
 """
 
+import os
+import sys
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -20,13 +22,24 @@ from apps.api.core.config import get_settings
 
 settings = get_settings()
 
-# Use NullPool in tests (each test gets a fresh connection)
+# Celery runs each task via a fresh `asyncio.run()` event loop, so a persistent
+# async connection pool hands the 2nd+ task in a fork a connection bound to a
+# closed loop ("got Future attached to a different loop"). Use NullPool in the
+# worker (and in tests) so every session opens/closes its own connection within
+# the current loop. The API keeps a real pool — it has one long-lived loop.
+_running_under_celery = bool(sys.argv) and os.path.basename(sys.argv[0] or "").startswith(
+    "celery"
+)
+_use_nullpool = settings.APP_ENV == "test" or _running_under_celery
+
 engine_kwargs: dict[str, Any] = {
     "echo": settings.is_development,
     "pool_pre_ping": True,
 }
 
-if settings.APP_ENV != "test":
+if _use_nullpool:
+    engine_kwargs["poolclass"] = NullPool
+else:
     engine_kwargs.update(
         {
             "pool_size": settings.DATABASE_POOL_SIZE,
@@ -34,8 +47,6 @@ if settings.APP_ENV != "test":
             "pool_recycle": settings.DATABASE_POOL_RECYCLE,
         }
     )
-else:
-    engine_kwargs["poolclass"] = NullPool
 
 db_engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 

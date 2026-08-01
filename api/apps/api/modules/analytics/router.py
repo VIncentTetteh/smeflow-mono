@@ -13,7 +13,7 @@ from pathlib import Path
 from apps.api.core.config import get_settings
 from apps.api.core.database import get_db
 from apps.api.core.dependencies import RequireFeature, get_current_business_id
-from apps.api.modules.analytics.service import AnalyticsService
+from apps.api.modules.analytics.service import EXPORT_REPORTS, AnalyticsService, flatten_for_export
 from apps.api.workers.dispatch import enqueue_task
 from apps.api.workers.celery_app import celery
 
@@ -26,7 +26,7 @@ _PERIOD_DAYS = {"7d": 7, "30d": 30, "90d": 90, "1y": 365}
 
 
 class AnalyticsExportRequest(BaseModel):
-    report: str = Field("revenue", description="revenue|top_items|profit_loss|cash_flow")
+    report: str = Field("revenue", description="|".join(EXPORT_REPORTS))
     format: str = Field("xlsx", description="xlsx|pdf")
     period: str = Field("30d", description="7d|30d|90d|1y")
     group_by: str = Field("day", description="day|week|month")
@@ -219,11 +219,16 @@ async def profit_loss(
     previous = await svc.pnl_summary(business_id, previous_from, previous_to)
     current_margin = current.get("gross_margin_pct", 0) or 0
     previous_margin = previous.get("gross_margin_pct", 0) or 0
+    current_net_margin = current.get("net_margin_pct", 0) or 0
+    previous_net_margin = previous.get("net_margin_pct", 0) or 0
     current.update(
         {
             "period": period_label,
             "previous_period": {"period": previous_label, **previous},
             "gross_margin_delta_percent": round(float(current_margin) - float(previous_margin), 2),
+            "net_margin_delta_percent": round(
+                float(current_net_margin) - float(previous_net_margin), 2
+            ),
         }
     )
     return current
@@ -344,8 +349,8 @@ async def export_analytics(
         raise HTTPException(400, "format must be xlsx, pdf, or csv")
     if body.group_by not in ("day", "week", "month"):
         raise HTTPException(400, "group_by must be one of: day, week, month")
-    if body.report not in ("revenue", "top_items", "profit_loss", "cash_flow"):
-        raise HTTPException(400, "report must be revenue, top_items, profit_loss, or cash_flow")
+    if body.report not in EXPORT_REPORTS:
+        raise HTTPException(400, f"report must be one of: {', '.join(EXPORT_REPORTS)}")
 
     from apps.api.workers.tasks.analytics_tasks import export_analytics_report
 
@@ -389,7 +394,7 @@ async def export_analytics_sync(
 
     if export_format not in ("csv", "xlsx", "pdf"):
         raise HTTPException(400, "format must be csv, xlsx, or pdf")
-    if report not in ("revenue", "top_items", "profit_loss", "cash_flow"):
+    if report not in EXPORT_REPORTS:
         raise HTTPException(400, "invalid report type")
 
     # If a job_id is provided, support polling for Celery task status and streaming the
@@ -460,8 +465,11 @@ async def export_analytics_sync(
         rows = await svc.top_items(business_id, from_date, to_date, limit)
         title = f"Top Items {from_date} to {to_date}"
     elif report == "profit_loss":
-        rows = [await svc.pnl_summary(business_id, from_date, to_date)]
+        rows = [flatten_for_export(await svc.pnl_summary(business_id, from_date, to_date))]
         title = f"Profit & Loss {from_date} to {to_date}"
+    elif report == "expenses":
+        rows = await svc.expense_report(business_id, from_date, to_date)
+        title = f"Expenses {from_date} to {to_date}"
     else:
         rows = [await svc.cash_flow(business_id, from_date, to_date)]
         title = f"Cash Flow {from_date} to {to_date}"

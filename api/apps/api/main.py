@@ -193,6 +193,14 @@ def create_app() -> FastAPI:
     # ── Routers ───────────────────────────────────────────────────────────────
     _register_routers(app)
 
+    # Serve locally-stored catalog images in dev (S3 is used when configured).
+    from libs.image_storage import MEDIA_ROOT
+
+    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/media", StaticFiles(directory=str(MEDIA_ROOT)), name="media")
+
     return app
 
 
@@ -206,6 +214,7 @@ def _register_routers(app: FastAPI) -> None:
     from apps.api.modules.business.router import router as business_router
     from apps.api.modules.chat.router import router as chat_router
     from apps.api.modules.credit.router import router as credit_router
+    from apps.api.modules.expenses.router import router as expenses_router
     from apps.api.modules.inventory.router import router as inventory_router
     from apps.api.modules.invoicing.router import router as invoicing_router
     from apps.api.modules.kyc.router import router as kyc_router
@@ -235,6 +244,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(input_vat_router, prefix=f"{prefix}/tax", tags=["Tax"])
     app.include_router(tax_rate_router, prefix=f"{prefix}/tax", tags=["Tax"])
     app.include_router(credit_router, prefix=f"{prefix}/credit", tags=["Credit"])
+    app.include_router(expenses_router, prefix=f"{prefix}/expenses", tags=["Expenses"])
     app.include_router(analytics_router, prefix=f"{prefix}/analytics", tags=["Analytics"])
     app.include_router(chat_router, prefix=f"{prefix}/chat", tags=["Chat"])
     app.include_router(
@@ -245,6 +255,9 @@ def _register_routers(app: FastAPI) -> None:
         billing_webhook_router, prefix=f"{prefix}/webhooks/billing", tags=["Billing Webhooks"]
     )
     app.include_router(admin_router, prefix=f"{prefix}/admin", tags=["Admin"])
+    from apps.api.modules.storefront.router import router as storefront_router
+
+    app.include_router(storefront_router, prefix=f"{prefix}/public", tags=["Public Storefront"])
     app.include_router(ussd_router, prefix=f"{prefix}/ussd", tags=["USSD"])
     app.include_router(agent_network_router, prefix=f"{prefix}/agents", tags=["Agent Network"])
 

@@ -333,6 +333,7 @@ class PayrollService:
         if total_sent > 0:
             run.status = "disbursed"
             await self.db.flush([run])
+            await self._post_wages_expense(business_id, run)
 
         return {
             "run_id": str(run.id),
@@ -479,6 +480,34 @@ class PayrollService:
             total += payslip.net_pay
         await self.db.flush()
         return created, money(total), f"local://payroll-disbursements/{run.id}.json", skipped
+
+    async def _post_wages_expense(self, business_id: UUID, run: PayrollRun) -> None:
+        """
+        Record the disbursed run as a wages expense so it reaches net profit.
+
+        Posts the full employer cost (gross pay + employer SSNIT), not net pay —
+        employee SSNIT and PAYE are withheld from staff but still cost the business.
+        Idempotent on (source='payroll', source_id=run.id), so a retried disbursement
+        updates the existing row instead of adding a second one.
+        """
+        from apps.api.modules.expenses.service import ExpenseService
+
+        amount = money(
+            (run.total_gross or Decimal("0")) + (run.total_ssnit_employer or Decimal("0"))
+        )
+        if amount <= 0:
+            return
+
+        await ExpenseService(self.db).upsert_system_expense(
+            business_id,
+            source="payroll",
+            source_id=run.id,
+            category="wages_salaries",
+            amount=amount,
+            expense_date=run.period_end,
+            payment_method="momo",
+            notes=f"Payroll {run.period_start} to {run.period_end} (gross pay + employer SSNIT)",
+        )
 
     async def _get_employee(self, business_id: UUID, employee_id: UUID) -> Employee:
         result = await self.db.execute(

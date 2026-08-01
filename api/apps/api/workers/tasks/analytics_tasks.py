@@ -36,7 +36,7 @@ def export_analytics_report(
 
     async def _run() -> dict:
         from apps.api.core.database import AsyncSessionLocal
-        from apps.api.modules.analytics.service import AnalyticsService
+        from apps.api.modules.analytics.service import AnalyticsService, flatten_for_export
 
         from_date, to_date = _period_window(period)
         async with AsyncSessionLocal() as db:
@@ -50,8 +50,13 @@ def export_analytics_report(
                 rows = await svc.top_items(UUID(business_id), from_date, to_date, limit)
                 title = f"Top Items {from_date} to {to_date}"
             elif report == "profit_loss":
-                rows = [await svc.pnl_summary(UUID(business_id), from_date, to_date)]
+                rows = [
+                    flatten_for_export(await svc.pnl_summary(UUID(business_id), from_date, to_date))
+                ]
                 title = f"Profit & Loss {from_date} to {to_date}"
+            elif report == "expenses":
+                rows = await svc.expense_report(UUID(business_id), from_date, to_date)
+                title = f"Expenses {from_date} to {to_date}"
             elif report == "cash_flow":
                 rows = [await svc.cash_flow(UUID(business_id), from_date, to_date)]
                 title = f"Cash Flow {from_date} to {to_date}"

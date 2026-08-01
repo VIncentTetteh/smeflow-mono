@@ -29,6 +29,27 @@ def _window(from_date: str, to_date: str) -> tuple[datetime, datetime]:
     return datetime.combine(start, time.min), datetime.combine(end + timedelta(days=1), time.min)
 
 
+# Single source of truth for exportable report types — consumed by the analytics
+# router (validation + sync download) and the Celery export task.
+EXPORT_REPORTS: tuple[str, ...] = (
+    "revenue",
+    "top_items",
+    "profit_loss",
+    "cash_flow",
+    "expenses",
+)
+
+
+def flatten_for_export(row: dict) -> dict:
+    """
+    Drop nested values that cannot be rendered as a single spreadsheet cell.
+
+    pnl_summary carries an `expenses_by_category` list for the UI; it has no place
+    in a flat CSV/XLSX row.
+    """
+    return {key: value for key, value in row.items() if not isinstance(value, (list, dict))}
+
+
 class AnalyticsService:
     def __init__(self, db: AsyncSession, redis_client: Any | None = None):
         self.db = db
@@ -154,8 +175,14 @@ class AnalyticsService:
 
     async def pnl_summary(self, business_id: UUID, from_date: str, to_date: str) -> dict:
         """
-        Simplified P&L: revenue - COGS (cost_price * qty sold) = gross profit.
-        Payroll costs are added when available.
+        P&L: revenue - COGS (cost_price * qty sold) = gross profit,
+        then - operating expenses = net profit.
+
+        Only operating-kind expense categories are subtracted. Stock purchases are
+        already counted in COGS via SaleItem.cost_price, and owner drawings / loan
+        principal are not costs of trading — both are excluded by
+        ExpenseService.operating_total. Wages reach this figure automatically: a
+        disbursed payroll run posts a system expense.
         """
         start_at, end_at = _window(from_date, to_date)
 
@@ -210,6 +237,19 @@ class AnalyticsService:
         gross_profit = revenue - cogs
         gross_margin = (gross_profit / revenue * 100) if revenue else Decimal("0")
 
+        from apps.api.modules.expenses.service import ExpenseService
+
+        expense_svc = ExpenseService(self.db)
+        start_date = date_type.fromisoformat(from_date)
+        end_date = date_type.fromisoformat(to_date)
+        operating_expenses = await expense_svc.operating_total(business_id, start_date, end_date)
+        expenses_by_category = await expense_svc.totals_by_category(
+            business_id, start_date, end_date, operating_only=True
+        )
+
+        net_profit = gross_profit - operating_expenses
+        net_margin = (net_profit / revenue * 100) if revenue else Decimal("0")
+
         return {
             "from_date": from_date,
             "to_date": to_date,
@@ -219,7 +259,19 @@ class AnalyticsService:
             "cogs": float(cogs),
             "gross_profit": float(gross_profit),
             "gross_margin_pct": round(float(gross_margin), 2),
+            "operating_expenses": float(operating_expenses),
+            "net_profit": float(net_profit),
+            "net_margin_pct": round(float(net_margin), 2),
+            "expenses_by_category": expenses_by_category,
         }
+
+    async def expense_report(self, business_id: UUID, from_date: str, to_date: str) -> list[dict]:
+        """Expense spend broken down by category — the exportable view."""
+        from apps.api.modules.expenses.service import ExpenseService
+
+        return await ExpenseService(self.db).totals_by_category(
+            business_id, date_type.fromisoformat(from_date), date_type.fromisoformat(to_date)
+        )
 
     async def customer_analytics(self, business_id: UUID, from_date: str, to_date: str) -> dict:
         """Phase 4: Advanced customer analytics and segmentation."""
@@ -424,7 +476,13 @@ class AnalyticsService:
     # ── Cash Flow ─────────────────────────────────────────────────────────────
 
     async def cash_flow(self, business_id: UUID, from_date: str, to_date: str) -> dict:
-        """Cash inflows (cash + confirmed momo) vs outstanding credit."""
+        """
+        Cash inflows (cash + confirmed momo) less expense outflows on the same rails,
+        alongside outstanding credit.
+
+        Outflow counts every expense category — money paid out for stock or drawings
+        has still left the business, even though it is excluded from operating expenses.
+        """
         start_at, end_at = _window(from_date, to_date)
 
         result = await self.db.execute(
@@ -450,12 +508,25 @@ class AnalyticsService:
         outstanding = row.outstanding or Decimal("0")
         total_inflow = cash_in + momo_in
 
+        from apps.api.modules.expenses.service import ExpenseService
+
+        outflows = await ExpenseService(self.db).cash_outflow(
+            business_id, date_type.fromisoformat(from_date), date_type.fromisoformat(to_date)
+        )
+        cash_out = outflows["cash"]
+        momo_out = outflows["momo"]
+        total_outflow = cash_out + momo_out
+
         return {
             "from_date": from_date,
             "to_date": to_date,
             "cash_inflow": cash_in,
             "momo_inflow": momo_in,
             "total_inflow": total_inflow,
+            "cash_outflow": cash_out,
+            "momo_outflow": momo_out,
+            "total_outflow": total_outflow,
+            "net_cash_flow": total_inflow - total_outflow,
             "outstanding_credit": outstanding,
             "total_sales": row.total_sales or 0,
         }
