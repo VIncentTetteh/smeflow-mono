@@ -3,6 +3,9 @@ import type {
   BusinessSwitchRequestDto,
   DeviceRegisterRequestDto,
   DeviceRegisterResponseDto,
+  EmailOTPRequestDto,
+  EmailOTPVerifyDto,
+  GoogleAuthDto,
   LogoutRequestDto,
   MessageResponseDto,
   OTPRequestDto,
@@ -90,5 +93,45 @@ export async function confirmPhoneChange(body: PhoneChangeConfirmDto): Promise<M
     '/api/v1/auth/account-recovery/confirm',
     body
   );
+  return response.data;
+}
+
+// ── Email OTP ────────────────────────────────────────────────────────────────
+
+export async function requestEmailLink(body: EmailOTPRequestDto): Promise<MessageResponseDto> {
+  const response = await apiClient.post<MessageResponseDto>(
+    '/api/v1/auth/email/link/initiate',
+    body
+  );
+  return response.data;
+}
+
+export async function confirmEmailLink(body: EmailOTPVerifyDto): Promise<UserResponseDto> {
+  const response = await apiClient.post<UserResponseDto>('/api/v1/auth/email/link/confirm', body);
+  return response.data;
+}
+
+export async function requestEmailLogin(body: EmailOTPRequestDto): Promise<MessageResponseDto> {
+  const response = await apiClient.post<MessageResponseDto>(
+    '/api/v1/auth/email/login/request',
+    body
+  );
+  return response.data;
+}
+
+export async function verifyEmailLogin(body: EmailOTPVerifyDto): Promise<TokenResponseDto> {
+  const response = await apiClient.post<TokenResponseDto>('/api/v1/auth/email/login/verify', body);
+  return response.data;
+}
+
+// ── Google Sign-In ─────────────────────────────────────────────────────────────
+
+export async function linkGoogleAccount(body: GoogleAuthDto): Promise<UserResponseDto> {
+  const response = await apiClient.post<UserResponseDto>('/api/v1/auth/google/link', body);
+  return response.data;
+}
+
+export async function googleLogin(body: GoogleAuthDto): Promise<TokenResponseDto> {
+  const response = await apiClient.post<TokenResponseDto>('/api/v1/auth/google/login', body);
   return response.data;
 }

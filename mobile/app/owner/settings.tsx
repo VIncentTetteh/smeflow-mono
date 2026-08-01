@@ -56,6 +56,13 @@ export default function SettingsScreen() {
             ? `Biometric unlock ${biometricEnabled ? 'on' : 'off'}`
             : 'Biometrics unavailable',
         },
+        {
+          icon: 'login-variant',
+          label: 'Sign-in methods',
+          sub: user?.email
+            ? `Email linked · ${user.email}`
+            : 'Add email or Google sign-in',
+        },
       ],
     },
     {
@@ -109,6 +116,9 @@ export default function SettingsScreen() {
             Alert.alert('Could not enable', 'Biometric confirmation was cancelled or failed.');
           }
         });
+        break;
+      case 'Sign-in methods':
+        router.push('/owner/link-accounts');
         break;
       case 'Talk to a person':
         Linking.canOpenURL('tel:0800763569').then((can) => {

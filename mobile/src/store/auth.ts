@@ -7,6 +7,8 @@ interface User {
   id: string;
   phone: string;
   name: string;
+  email?: string | null;
+  googleLinked?: boolean;
   kycStatus?: string;
 }
 
@@ -79,6 +81,7 @@ interface AuthState {
   businessId: string | null;
   role: Exclude<UserRole, 'platform_admin'> | null;
   pendingOtpPhone: string | null;
+  pendingEmailLogin: string | null;
   bootstrapStatus: 'idle' | 'loading' | 'ready' | 'invalid';
   bootstrapError: string | null;
   business: BusinessProfile | null;
@@ -92,6 +95,7 @@ interface AuthState {
   isAuthenticated: () => boolean;
   hasBusinessContext: () => boolean;
   setPendingOtpPhone: (phone: string | null) => void;
+  setPendingEmailLogin: (email: string | null) => void;
   setAuth: (payload: {
     accessToken: string;
     refreshToken: string;
@@ -135,6 +139,7 @@ export const useAuthStore = create<AuthState>()(
       businessId: null,
       role: null,
       pendingOtpPhone: null,
+      pendingEmailLogin: null,
       bootstrapStatus: 'idle',
       bootstrapError: null,
       business: null,
@@ -148,6 +153,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: () => !!get().accessToken,
       hasBusinessContext: () => !!get().accessToken && !!get().businessId && get().role !== 'none',
       setPendingOtpPhone: (pendingOtpPhone) => set({ pendingOtpPhone }),
+      setPendingEmailLogin: (pendingEmailLogin) => set({ pendingEmailLogin }),
       setAuth: (payload) => set({
         accessToken: payload.accessToken,
         refreshToken: payload.refreshToken,
@@ -155,6 +161,7 @@ export const useAuthStore = create<AuthState>()(
         businessId: payload.businessId,
         role: payload.role as AuthState['role'],
         pendingOtpPhone: null,
+        pendingEmailLogin: null,
         bootstrapStatus: 'idle',
         bootstrapError: null,
         ...EMPTY_BUSINESS_CONTEXT,
@@ -197,6 +204,7 @@ export const useAuthStore = create<AuthState>()(
         businessId: null,
         role: null,
         pendingOtpPhone: null,
+        pendingEmailLogin: null,
         bootstrapStatus: 'idle',
         bootstrapError: null,
         business: null,
@@ -217,6 +225,7 @@ export const useAuthStore = create<AuthState>()(
         businessId: state.businessId,
         role: state.role,
         pendingOtpPhone: state.pendingOtpPhone,
+        pendingEmailLogin: state.pendingEmailLogin,
         biometricEnabled: state.biometricEnabled,
       }),
     }

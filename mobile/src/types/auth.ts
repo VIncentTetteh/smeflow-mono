@@ -37,9 +37,24 @@ export interface BusinessSwitchRequestDto {
   business_id: UUID;
 }
 
+export interface EmailOTPRequestDto {
+  email: string;
+}
+
+export interface EmailOTPVerifyDto {
+  email: string;
+  otp: string;
+}
+
+export interface GoogleAuthDto {
+  id_token: string;
+}
+
 export interface UserResponseDto {
   id: UUID;
   phone: string;
+  email: string | null;
+  google_linked: boolean;
   name: string | null;
   ghana_card_id: string | null;
   tin: string | null;

@@ -50,7 +50,14 @@
       "expo-font",
       "expo-camera",
       "expo-notifications",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_REAL_IOS_CLIENT_ID"
+        }
+      ],
+      "./plugins/withGoogleSigninModularHeaders.js"
     ],
     "experiments": {
       "typedRoutes": true

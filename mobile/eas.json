@@ -7,26 +7,34 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://staging-api.smeflow.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging-api.smeflow.app",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://staging-api.smeflow.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging-api.smeflow.app",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     },
     "pilot": {
       "autoIncrement": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://pilot-api.smeflow.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://pilot-api.smeflow.app",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.smeflow.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.smeflow.app",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     }
   },

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { requestOtp, verifyOtp } from '@/api/auth.api';
+import { requestEmailLogin, verifyEmailLogin } from '@/api/auth.api';
 import { toApiErrorMessage } from '@/api/errors';
 import { Button } from '@/components/ui/Button';
 import { StatusMessage } from '@/components/ui/StatusMessage';
@@ -24,13 +24,13 @@ import { useAuthStore } from '@/store/auth';
 
 const OTP_LENGTH = 6;
 
-export default function OTPScreen() {
+export default function EmailOTPScreen() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(30);
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const inputRef = useRef<TextInput>(null);
   const router = useRouter();
   const { colors, fonts, spacing } = useTheme();
@@ -39,10 +39,10 @@ export default function OTPScreen() {
   const setAuth = useAuthStore((state) => state.setAuth);
   const biometricEnabled = useAuthStore((state) => state.biometricEnabled);
   const setBiometricEnabled = useAuthStore((state) => state.setBiometricEnabled);
-  const pendingOtpPhone = useAuthStore((state) => state.pendingOtpPhone);
+  const pendingEmailLogin = useAuthStore((state) => state.pendingEmailLogin);
 
-  const routePhone = Array.isArray(phone) ? phone[0] : phone;
-  const phoneNumber = routePhone || pendingOtpPhone || '';
+  const routeEmail = Array.isArray(email) ? email[0] : email;
+  const emailAddress = routeEmail || pendingEmailLogin || '';
 
   const cells = useMemo(
     () => otp.padEnd(OTP_LENGTH, ' ').split('').slice(0, OTP_LENGTH),
@@ -56,17 +56,17 @@ export default function OTPScreen() {
   }, [resendTimer]);
 
   const verify = useCallback(async (code: string) => {
-    if (loading || code.length !== OTP_LENGTH || !phoneNumber) return;
+    if (loading || code.length !== OTP_LENGTH || !emailAddress) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await verifyOtp({ phone: phoneNumber, otp: code });
+      const data = await verifyEmailLogin({ email: emailAddress, otp: code });
       queryClient.clear();
       void resetScopedLocalData();
       setAuth({
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
-        user: { id: data.user_id, phone: phoneNumber, name: '' },
+        user: { id: data.user_id, phone: '', email: emailAddress, name: '' },
         businessId: data.business_id,
         role: data.role,
       });
@@ -95,7 +95,7 @@ export default function OTPScreen() {
     } finally {
       setLoading(false);
     }
-  }, [biometricEnabled, loading, phoneNumber, router, setAuth, setBiometricEnabled, queryClient]);
+  }, [biometricEnabled, emailAddress, loading, router, setAuth, setBiometricEnabled, queryClient]);
 
   function handleChange(value: string) {
     const cleaned = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
@@ -107,11 +107,11 @@ export default function OTPScreen() {
   }
 
   async function resendCode() {
-    if (resending || !phoneNumber) return;
+    if (resending || !emailAddress) return;
     setResending(true);
     setError(null);
     try {
-      await requestOtp({ phone: phoneNumber });
+      await requestEmailLogin({ email: emailAddress });
       setResendTimer(30);
     } catch (resendError) {
       setError(toApiErrorMessage(resendError));
@@ -127,7 +127,6 @@ export default function OTPScreen() {
         keyboardVerticalOffset={insets.top}
         style={{ flex: 1 }}
       >
-        {/* Header with back arrow */}
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -151,19 +150,18 @@ export default function OTPScreen() {
             }}>
               Enter the 4-digit code
             </Text>
-            {phoneNumber ? (
+            {emailAddress ? (
               <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 1 }}>
-                Sent to {phoneNumber}
+                Sent to {emailAddress}
               </Text>
             ) : null}
           </View>
         </View>
 
-        {/* Body */}
         <View style={{ flex: 1, paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
-          {!phoneNumber ? (
+          {!emailAddress ? (
             <StatusMessage
-              message="Your phone number was not found. Go back and request a new one-time code."
+              message="Your email was not found. Go back and request a new one-time code."
               tone="error"
             />
           ) : null}
@@ -171,7 +169,6 @@ export default function OTPScreen() {
           <Pressable onPress={() => inputRef.current?.focus()}>
             <TextInput
               ref={inputRef}
-              autoComplete="sms-otp"
               autoFocus
               caretHidden
               keyboardType="number-pad"
@@ -212,7 +209,6 @@ export default function OTPScreen() {
             </View>
           </Pressable>
 
-          {/* Resend timer */}
           <View style={{ marginTop: 14 }}>
             {resendTimer > 0 ? (
               <Text style={{ fontSize: 12, color: colors.muted }}>
@@ -239,7 +235,7 @@ export default function OTPScreen() {
           <View style={{ flex: 1 }} />
 
           <Button
-            disabled={!phoneNumber || otp.length !== OTP_LENGTH}
+            disabled={!emailAddress || otp.length !== OTP_LENGTH}
             label="Continue"
             loading={loading}
             onPress={() => verify(otp)}
@@ -250,7 +246,7 @@ export default function OTPScreen() {
             style={{ paddingVertical: 10, alignItems: 'center' }}
           >
             <Text style={{ fontSize: 12.5, color: colors.muted }}>
-              Try a different number
+              Try a different sign-in method
             </Text>
           </TouchableOpacity>
           <View style={{ height: spacing.sm }} />
