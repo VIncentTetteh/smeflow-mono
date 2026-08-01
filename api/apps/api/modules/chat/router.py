@@ -31,9 +31,35 @@ from apps.api.core.config import get_settings
 from apps.api.core.database import get_db
 from apps.api.core.dependencies import get_current_business_id, get_current_user_id
 from apps.api.core.middleware import limiter
+from apps.api.modules.chat.agent import run_agent
 from apps.api.modules.chat.handlers import dispatch
 from apps.api.modules.chat.intent_parser import parse_intent
 from libs.translation import normalize_app_language, translate_text
+
+import re as _re
+
+_SET_LANG_RE = _re.compile(r"^\s*(?:language|speak|switch to)\s+([a-z]{2,3})\s*$", _re.IGNORECASE)
+_LANG_ALIASES = {"tw": "ak", "ew": "ee", "ga": "gaa", "pid": "pcm", "twi": "ak", "english": "en"}
+
+
+def _match_set_language(message: str) -> str | None:
+    m = _SET_LANG_RE.match(message or "")
+    if not m:
+        return None
+    code = m.group(1).lower()
+    code = _LANG_ALIASES.get(code, code)
+    return code if code in {"en", "ak", "ee", "gaa", "pcm"} else None
+
+
+async def _persist_language(user_id: UUID, business_id: UUID, lang: str, db: AsyncSession) -> None:
+    from sqlalchemy import update
+
+    from apps.api.modules.auth.models import User
+    from apps.api.modules.business.models import Business
+
+    await db.execute(update(User).where(User.id == user_id).values(language_pref=lang))
+    await db.execute(update(Business).where(Business.id == business_id).values(preferred_language=lang))
+    await db.commit()
 
 settings = get_settings()
 router = APIRouter()
@@ -90,6 +116,9 @@ class ChatMessage(BaseModel):
     message: str
     session_id: str | None = None
     language: str | None = None
+    # When the user taps "Yes" on a proposed write action, the client echoes the
+    # exact pending_action it received so the server can commit it.
+    confirm_action: dict | None = None
 
 
 class ChatResponse(BaseModel):
@@ -99,6 +128,8 @@ class ChatResponse(BaseModel):
     entities: dict = {}
     actions_taken: list[str] = []
     media_url: str | None = None
+    # A proposed write awaiting confirmation (item, qty, total, …). Never a result.
+    pending_action: dict | None = None
 
 
 async def _get_user_language(user_id: UUID, db: AsyncSession) -> str:
@@ -147,8 +178,9 @@ async def process_chat(
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
     """
-    Process a chat command from the mobile app or web interface.
-    Parses intent, dispatches to appropriate handler, returns structured reply.
+    Agentic RAG assistant: answers any question from the business's own data via
+    tool-calling, and replies in the user's language. Multi-turn (Redis history
+    is fed to the model). Keeps a fast-path for the set-language command.
     """
     await _check_and_record_ai_usage(business_id, db)
     language = (
@@ -156,27 +188,53 @@ async def process_chat(
         if body.language
         else await _get_user_language(user_id, db)
     )
-    canonical_message = await translate_text(body.message, "en", source_language=language)
-    intent = await parse_intent(canonical_message)
-    logger.info(
-        "chat.intent_parsed",
-        intent=intent.name,
-        confidence=intent.confidence,
-        llm_used=intent.llm_used,
-    )
-
-    result = await dispatch(intent, business_id, user_id, db, language="en")
-    reply_language = normalize_app_language(result.get("language") or language)
-    reply = await translate_text(result["reply"], reply_language, source_language="en")
     history_key = _session_key(business_id, body.session_id)
-    await _append_history(history_key, "user", body.message, intent.name)
-    await _append_history(history_key, "assistant", reply, intent.name)
+
+    # Confirm branch: the user tapped "Yes" on a proposed write — commit it.
+    if body.confirm_action:
+        from apps.api.modules.chat.tools import PROPOSAL_TYPES, commit_action
+
+        proposal = body.confirm_action
+        if proposal.get("proposal_type") not in PROPOSAL_TYPES:
+            return ChatResponse(reply="I couldn't complete that action.", intent="agent")
+        try:
+            result = await commit_action(proposal, business_id, user_id, db)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("chat.commit_failed", error=str(exc))
+            return ChatResponse(reply="Sorry, I couldn't complete that. Please try again.", intent="agent")
+        if proposal["proposal_type"] == "record_sale":
+            reply = f"✅ Recorded: {proposal.get('qty')} × {proposal.get('item_name')} for GH₵{proposal.get('total')}."
+        else:
+            reply = f"✅ Stock updated for {proposal.get('item_name')}."
+        await _append_history(history_key, "assistant", reply, "agent")
+        return ChatResponse(reply=reply, intent="agent", actions_taken=[result.get("action", "done")])
+
+    # Fast-path: "language <code>" persists the preference without an LLM call.
+    lang_match = _match_set_language(body.message)
+    if lang_match:
+        await _persist_language(user_id, business_id, lang_match, db)
+        labels = {"en": "English", "ak": "Twi", "ee": "Ewe", "gaa": "Ga", "pcm": "Pidgin"}
+        reply = f"Done — I'll reply in {labels.get(lang_match, 'English')} from now on."
+        await _append_history(history_key, "user", body.message, "set_language")
+        await _append_history(history_key, "assistant", reply, "set_language")
+        return ChatResponse(reply=reply, intent="set_language")
+
+    history = await _get_history(history_key)
+    result = await run_agent(
+        message=body.message,
+        business_id=business_id,
+        user_id=user_id,
+        db=db,
+        language_code=language,
+        history=history,
+    )
+    await _append_history(history_key, "user", body.message, "agent")
+    await _append_history(history_key, "assistant", result.reply, "agent")
     return ChatResponse(
-        reply=reply,
-        intent=intent.name,
-        confidence=round(intent.confidence, 3),
-        entities=intent.entities,
-        actions_taken=result.get("actions_taken", []),
+        reply=result.reply,
+        intent="agent",
+        actions_taken=result.tools_used,
+        pending_action=result.pending_action,
     )
 
 
