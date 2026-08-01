@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import {
@@ -57,6 +58,7 @@ function formatTrendLabel(point: { day?: string; period?: string }, grp: GroupBy
 
 export default function AnalyticsScreen() {
   const { colors, fonts } = useTheme();
+  const router = useRouter();
   const business = useAuthStore((s) => s.business);
   const [period, setPeriod] = useState<Period>('30d');
   const [groupBy, setGroupBy] = useState<GroupBy>('day');
@@ -410,10 +412,12 @@ export default function AnalyticsScreen() {
                     { label: 'Revenue', value: pnl.data.revenue, bold: false },
                     { label: 'Cost of goods', value: pnl.data.cogs, bold: false },
                     { label: 'Gross profit', value: pnl.data.gross_profit, bold: true },
+                    { label: 'Operating expenses', value: pnl.data.operating_expenses ?? 0, bold: false },
+                    { label: 'Net profit', value: pnl.data.net_profit ?? pnl.data.gross_profit, bold: true },
                   ].map((row) => (
                     <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                       <Text style={{ fontSize: 13, color: colors.muted }}>{row.label}</Text>
-                      <Text style={{ fontSize: 13, fontFamily: row.bold ? fonts.bodySemiBold : fonts.body, color: row.bold ? colors.brand : colors.ink }}>
+                      <Text style={{ fontSize: 13, fontFamily: row.bold ? fonts.bodySemiBold : fonts.body, color: row.bold ? (row.value < 0 ? colors.danger : colors.brand) : colors.ink }}>
                         {ghc(row.value)}
                       </Text>
                     </View>
@@ -422,6 +426,20 @@ export default function AnalyticsScreen() {
                     <Text style={{ fontSize: 12, color: colors.muted }}>Gross margin</Text>
                     <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.ink }}>{pnl.data.gross_margin_pct.toFixed(1)}%</Text>
                   </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 6 }}>
+                    <Text style={{ fontSize: 12, color: colors.muted }}>Net margin</Text>
+                    <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.ink }}>{(pnl.data.net_margin_pct ?? 0).toFixed(1)}%</Text>
+                  </View>
+                  {(pnl.data.operating_expenses ?? 0) === 0 && (
+                    <TouchableOpacity
+                      onPress={() => router.push('/owner/expenses')}
+                      style={{ marginTop: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
+                    >
+                      <Text style={{ fontSize: 12, fontFamily: fonts.bodySemiBold, color: colors.brand }}>
+                        Record your expenses to see true profit
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
             </View>
@@ -444,10 +462,12 @@ export default function AnalyticsScreen() {
                     { label: 'Cash collected', value: Number(cashFlow.data.cash_inflow), bold: false },
                     { label: 'MoMo collected', value: Number(cashFlow.data.momo_inflow), bold: false },
                     { label: 'Total inflow', value: Number(cashFlow.data.total_inflow), bold: true },
+                    { label: 'Money paid out', value: Number(cashFlow.data.total_outflow ?? 0), bold: false },
+                    { label: 'Net cash flow', value: Number(cashFlow.data.net_cash_flow ?? cashFlow.data.total_inflow), bold: true },
                   ].map((row) => (
                     <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                       <Text style={{ fontSize: 13, color: colors.muted }}>{row.label}</Text>
-                      <Text style={{ fontSize: 13, fontFamily: row.bold ? fonts.bodySemiBold : fonts.body, color: row.bold ? colors.brand : colors.ink }}>
+                      <Text style={{ fontSize: 13, fontFamily: row.bold ? fonts.bodySemiBold : fonts.body, color: row.bold ? (row.value < 0 ? colors.danger : colors.brand) : colors.ink }}>
                         {ghc(row.value)}
                       </Text>
                     </View>

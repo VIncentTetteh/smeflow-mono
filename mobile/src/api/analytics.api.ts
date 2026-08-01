@@ -102,9 +102,19 @@ export async function getTopItems(params: {
   to_date: string;
   limit?: number;
 }): Promise<TopItemDto[]> {
-  const response = await apiClient.get<TopItemDto[]>(
-    '/api/v1/analytics/inventory/top-items',
-    { params: { ...params, limit: params.limit ?? 10 } }
-  );
-  return response.data;
+  const response = await apiClient.get<
+    Array<{
+      item_id?: string | null;
+      description?: string;
+      total_qty?: number;
+      total_revenue?: number;
+    }>
+  >('/api/v1/analytics/items/top', { params: { ...params, limit: params.limit ?? 10 } });
+  // The endpoint returns `description`/`item_id`; the UI expects `name`/`id`.
+  return response.data.map((r) => ({
+    id: r.item_id ?? '',
+    name: r.description ?? '',
+    total_qty: Number(r.total_qty ?? 0),
+    total_revenue: Number(r.total_revenue ?? 0),
+  }));
 }

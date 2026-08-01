@@ -32,6 +32,15 @@ import {
 } from '@/api/billing.api';
 import { apiClient } from '@/api/client';
 import { clearChatHistory, getChatHistory, processChatMessage } from '@/api/chat.api';
+import {
+  deleteExpense,
+  getExpenseCategories,
+  getExpenseSummary,
+  getExpenses,
+  recordExpense,
+  updateExpense,
+} from '@/api/expenses.api';
+import type { ExpenseCreatePayload } from '@/types/expenses';
 import { getActiveLenders, getCreditScore, getCreditScoreHistory, listLoanRequests, requestLoan } from '@/api/credit.api';
 import {
   createDebitNote,
@@ -150,6 +159,73 @@ export function useAnalyticsCashFlow(params: { from_date: string; to_date: strin
     queryFn: () => getCashFlow(params!),
     staleTime: 30_000,
     retry: 1,
+  });
+}
+
+// ── Expenses ────────────────────────────────────────────────────────────────
+
+export function useExpenseCategories() {
+  return useQuery({
+    queryKey: ['expense-categories'],
+    queryFn: getExpenseCategories,
+    staleTime: Infinity, // fixed constant on the server; never goes stale
+    retry: 1,
+  });
+}
+
+export function useExpenses(params: { from_date: string; to_date: string } | null) {
+  return useQuery({
+    enabled: !!params,
+    queryKey: ['expenses', params],
+    queryFn: () => getExpenses({ ...params!, page_size: 100 }),
+    staleTime: 15_000,
+    retry: 1,
+  });
+}
+
+export function useExpenseSummary(params: { from_date: string; to_date: string } | null) {
+  return useQuery({
+    enabled: !!params,
+    queryKey: ['expense-summary', params],
+    queryFn: () => getExpenseSummary(params!),
+    staleTime: 15_000,
+    retry: 1,
+  });
+}
+
+/** Invalidates every view whose numbers move when an expense changes. */
+function useInvalidateExpenses() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    queryClient.invalidateQueries({ queryKey: ['expense-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-pnl'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-cash-flow'] });
+  };
+}
+
+export function useRecordExpense() {
+  const invalidate = useInvalidateExpenses();
+  return useMutation({
+    mutationFn: recordExpense,
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateExpense() {
+  const invalidate = useInvalidateExpenses();
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: string } & Partial<ExpenseCreatePayload>) =>
+      updateExpense(id, payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteExpense() {
+  const invalidate = useInvalidateExpenses();
+  return useMutation({
+    mutationFn: deleteExpense,
+    onSuccess: invalidate,
   });
 }
 
