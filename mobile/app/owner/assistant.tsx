@@ -38,6 +38,7 @@ interface Msg {
   t?: string;
   kind?: MsgKind;
   payload?: IntentPayload | SuccessPayload | CardPayload;
+  pending?: import('@/types/chat').PendingAction;
   time: string;
 }
 
@@ -234,6 +235,27 @@ export default function AssistantScreen() {
     setTimeout(() => inputRef.current?.focus(), 50);
   }
 
+  async function confirmIntent(msg: Msg) {
+    if (!msg.pending) return;
+    setMsgs((m) => m.filter((x) => x.id !== msg.id)); // remove the confirm card
+    try {
+      const response = await processMessage.mutateAsync({
+        language,
+        message: 'confirm',
+        confirm_action: msg.pending,
+      });
+      setMsgs((m) => [...m, {
+        id: `${Date.now()}-ok`, who: 'bot',
+        t: String(response.reply ?? 'Done.'), time: timeNow(),
+      }]);
+    } catch {
+      setMsgs((m) => [...m, {
+        id: `${Date.now()}-cerr`, who: 'bot',
+        t: "Sorry, I couldn't complete that. Please try again.", time: timeNow(),
+      }]);
+    }
+  }
+
   // Load history once on mount — backend stores { role, text, ... } not { content }
   useEffect(() => {
     if (historyLoaded || !history || history.length === 0) return;
@@ -314,6 +336,22 @@ export default function AssistantScreen() {
         id: `${Date.now()}-a`, who: 'bot',
         t: String(response.reply ?? response.message ?? 'I can help with that.'), time: timeNow(),
       }]);
+      const pa = response.pending_action;
+      if (pa) {
+        const items =
+          pa.proposal_type === 'record_sale'
+            ? [{ n: pa.item_name, q: pa.qty, p: pa.unit_price ?? 0 }]
+            : [{ n: pa.item_name, q: pa.qty_change, p: '' }];
+        setMsgs((m) => [...m, {
+          id: `${Date.now()}-pa`, who: 'bot', kind: 'intent', pending: pa, time: timeNow(),
+          payload: {
+            title: pa.proposal_type === 'record_sale' ? 'Confirm sale' : 'Confirm stock update',
+            items,
+            total: pa.total ?? null,
+            action: pa.proposal_type === 'record_sale' ? 'Yes, record sale' : 'Yes, update stock',
+          },
+        }]);
+      }
     } catch (err) {
       const axiosErr = err as { response?: { status: number } };
       let errMsg = "I'm offline — your message is saved.";
@@ -440,6 +478,7 @@ export default function AssistantScreen() {
             <ChatBubble
               key={m.id}
               msg={m}
+              onConfirm={m.kind === 'intent' ? () => confirmIntent(m) : undefined}
               onEdit={m.kind === 'intent' ? () => dismissIntent(m.id) : undefined}
             />
           ))}
