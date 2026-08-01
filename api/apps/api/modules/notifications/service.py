@@ -24,14 +24,38 @@ if TYPE_CHECKING:
 logger = structlog.get_logger()
 
 
+def sms_provider_configured(settings) -> bool:
+    """True if any SMS provider (Techieszon, Hubtel, or Africa's Talking) is configured.
+
+    Matches the presence-based checks `_send_sms()` itself uses for Hubtel/AT
+    (no separate "enabled" flag for those two) — only Techieszon requires its
+    explicit TECHIESZON_SMS_ENABLED toggle, since that's how it was introduced.
+    """
+    return bool(
+        (settings.TECHIESZON_SMS_ENABLED and settings.TECHIESZON_SMS_API_KEY)
+        or settings.HUBTEL_CLIENT_ID
+        or settings.AT_API_KEY
+    )
+
+
 async def send_email(
     to: str,
     subject: str,
     html: str,
     from_address: str | None = None,
 ) -> None:
-    """Send transactional email via Resend. Silently skips if RESEND_API_KEY is not set."""
+    """Send transactional email.
+
+    Provider precedence: SMTP (e.g. Gmail) when SMTP_HOST/USERNAME/PASSWORD are
+    configured, else Resend when RESEND_API_KEY is set. Silently skips when no
+    provider is configured so OTP flows never hard-fail on a missing key.
+    """
     settings = get_settings()
+
+    if settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+        await _send_email_smtp(to, subject, html, from_address)
+        return
+
     if not settings.RESEND_API_KEY:
         return
     import resend  # surfaced here so ImportError is visible before the try
@@ -47,9 +71,67 @@ async def send_email(
                 "html": html,
             },
         )
-        logger.info("email.sent", to_domain=to.split("@")[-1] if "@" in to else "unknown")
+        logger.info("email.sent", provider="resend", to_domain=to.split("@")[-1] if "@" in to else "unknown")
     except Exception as exc:
-        logger.error("email.send_failed", error=str(exc))
+        logger.error("email.send_failed", provider="resend", error=str(exc))
+
+
+def _send_email_smtp_blocking(
+    *,
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    use_tls: bool,
+    from_address: str,
+    to: str,
+    subject: str,
+    html: str,
+) -> None:
+    """Blocking SMTP send — run via asyncio.to_thread so the event loop isn't blocked."""
+    import smtplib
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg["From"] = from_address
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content("This message requires an HTML-capable email client.")
+    msg.add_alternative(html, subtype="html")
+
+    with smtplib.SMTP(host, port, timeout=15) as server:
+        server.ehlo()
+        if use_tls:
+            server.starttls()
+            server.ehlo()
+        server.login(username, password)
+        server.send_message(msg)
+
+
+async def _send_email_smtp(
+    to: str,
+    subject: str,
+    html: str,
+    from_address: str | None = None,
+) -> None:
+    settings = get_settings()
+    sender = from_address or settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
+    try:
+        await asyncio.to_thread(
+            _send_email_smtp_blocking,
+            host=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USERNAME,
+            password=settings.SMTP_PASSWORD,
+            use_tls=settings.SMTP_USE_TLS,
+            from_address=sender,
+            to=to,
+            subject=subject,
+            html=html,
+        )
+        logger.info("email.sent", provider="smtp", to_domain=to.split("@")[-1] if "@" in to else "unknown")
+    except Exception as exc:
+        logger.error("email.send_failed", provider="smtp", error=str(exc))
 
 
 @dataclass
@@ -73,10 +155,8 @@ class NotificationDispatcher:
             if not settings.WHATSAPP_ACCESS_TOKEN or not settings.WHATSAPP_PHONE_NUMBER_ID:
                 return {"status": "skipped", "channel": "whatsapp"}
             return await self._send_whatsapp(message)
-        if channel == "sms" or (
-            channel is None and (settings.HUBTEL_CLIENT_ID or settings.AT_API_KEY)
-        ):
-            if not settings.HUBTEL_CLIENT_ID and not settings.AT_API_KEY:
+        if channel == "sms" or (channel is None and sms_provider_configured(settings)):
+            if not sms_provider_configured(settings):
                 return {"status": "skipped", "channel": "sms"}
             return await self._send_sms(message)
         if channel == "push":
@@ -156,7 +236,17 @@ class NotificationDispatcher:
         try:
             from apps.api.core.circuit_breaker import CircuitBreaker
 
-            if settings.HUBTEL_CLIENT_ID:
+            if settings.TECHIESZON_SMS_ENABLED and settings.TECHIESZON_SMS_API_KEY:
+                from libs.techieszon_sms import TechieszonSmsClient
+
+                sms_techieszon = TechieszonSmsClient()
+
+                async def _call() -> dict:
+                    return await sms_techieszon.send(message.phone, message.text)
+
+                provider_data = await CircuitBreaker("techieszon_sms").call(_call)
+                provider_name = "techieszon"
+            elif settings.HUBTEL_CLIENT_ID:
                 from libs.hubtel_sms import HubtelSmsClient
 
                 sms = HubtelSmsClient()
@@ -165,6 +255,7 @@ class NotificationDispatcher:
                     return await sms.send(message.phone, message.text)
 
                 provider_data = await CircuitBreaker("hubtel_sms").call(_call)
+                provider_name = "hubtel"
             else:
                 # Fallback: Africa's Talking
                 async def _call() -> dict:  # type: ignore[no-redef]
@@ -189,8 +280,9 @@ class NotificationDispatcher:
                         return response.json() if hasattr(response, "json") else {}
 
                 provider_data = await CircuitBreaker("africastalking").call(_call)
+                provider_name = "africastalking"
 
-            logger.info("SMS sent successfully", phone=message.phone[-4:])
+            logger.info("SMS sent successfully", phone=message.phone[-4:], provider=provider_name)
             provider_reference = None
             if isinstance(provider_data, dict):
                 provider_reference = provider_data.get("messageId") or provider_data.get("message_id")

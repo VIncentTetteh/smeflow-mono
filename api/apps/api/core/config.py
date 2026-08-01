@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes (refresh tokens handle long sessions)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     OTP_EXPIRE_SECONDS: int = 300  # 5 minutes
-    OTP_LENGTH: int = 4
+    OTP_LENGTH: int = 6
     DEBUG_LOG_OTP: bool = False
     OTP_RATE_LIMIT: int = 3  # max OTP requests per phone per window
     OTP_RATE_WINDOW_SECONDS: int = 3600  # rolling window (1 hour)
@@ -74,6 +74,17 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "SMEflow <noreply@smeflow.app>"
 
+    # ── Email (SMTP — e.g. Gmail) ─────────────────────────
+    # When SMTP_HOST + SMTP_USERNAME + SMTP_PASSWORD are set, transactional
+    # email is sent via SMTP and takes precedence over Resend. For Gmail use
+    # smtp.gmail.com:587 with an App Password (not your normal password).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""  # defaults to SMTP_USERNAME when empty
+    SMTP_USE_TLS: bool = True  # STARTTLS on 587; set False only for port 25
+
     # ── Web Push (VAPID) ──────────────────────────────────
     VAPID_PUBLIC_KEY: str = ""
     VAPID_PRIVATE_KEY: str = ""
@@ -108,6 +119,17 @@ class Settings(BaseSettings):
     HUBTEL_OTP_ENABLED: bool = False
     HUBTEL_OTP_BASE_URL: str = "https://api-otp.hubtel.com"
 
+    # ── Techieszon SMS ────────────────────────────────────
+    TECHIESZON_SMS_ENABLED: bool = False
+    TECHIESZON_SMS_API_KEY: str = ""
+    TECHIESZON_SMS_SENDER_ID: str = "Techieszon"
+    TECHIESZON_SMS_BASE_URL: str = "https://smsapp.techieszon.com/sms/api"
+
+    # ── Google Sign-In ────────────────────────────────────
+    GOOGLE_OAUTH_IOS_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_ANDROID_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_WEB_CLIENT_ID: str = ""
+
     # ── AWS / Storage ─────────────────────────────────────
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
@@ -125,11 +147,23 @@ class Settings(BaseSettings):
     GOOGLE_TRANSLATE_API_KEY: str = ""
     GOOGLE_TRANSLATE_BASE_URL: str = "https://translation.googleapis.com/language/translate/v2"
 
-    # ── Groq (LLM chat + Whisper transcription) ───────────
+    # ── Groq (Whisper voice transcription) ───────────
     GROQ_API_KEY: str = ""
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
     GROQ_WHISPER_MODEL: str = "whisper-large-v3-turbo"
     GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
+
+    # ── RAG assistant provider switch ───────────
+    # "groq" (OpenAI-compatible, free tier) | "claude" (Anthropic API, paid credits)
+    AI_PROVIDER: str = "groq"
+
+    # ── Anthropic (Claude — powers the RAG assistant when AI_PROVIDER=claude) ───────────
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_CHAT_MODEL: str = "claude-opus-5"
+    # Effort tunes thinking depth / latency / cost. "low" is fast and strong for
+    # tool-calling RAG; set "" to omit thinking+effort (needed for models that
+    # don't support them, e.g. claude-haiku-4-5). Levels: low|medium|high|xhigh|max.
+    ANTHROPIC_CHAT_EFFORT: str = "low"
 
     # ── Sentry ────────────────────────────────────────────
     SENTRY_DSN: str = ""
@@ -163,6 +197,9 @@ class Settings(BaseSettings):
 
     # ── App URLs ──────────────────────────────────────────
     APP_BASE_URL: str = "https://app.smeflow.com"
+    # Trusted public web origin for storefront payment callbacks. Falls back to
+    # APP_BASE_URL when empty. NEVER derive the Paystack callback from client input.
+    STOREFRONT_WEB_BASE_URL: str = ""
 
     # ── Operations ────────────────────────────────────────
     AGENT_COMMISSION_MIN_PAYOUT_GHS: float = 10.0
