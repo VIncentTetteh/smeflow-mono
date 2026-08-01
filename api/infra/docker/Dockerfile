@@ -10,9 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv
 RUN pip install --no-cache-dir uv
 
-# Install Python deps
-COPY pyproject.toml .
-RUN uv sync --no-dev
+# Install Python deps — copy the lockfile too and install --frozen so builds are
+# reproducible (pinned to uv.lock) instead of re-resolving version ranges each time.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 

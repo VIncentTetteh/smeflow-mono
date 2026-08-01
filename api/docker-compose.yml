@@ -144,10 +144,14 @@ services:
     volumes:
       - rabbitmqdata:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
+      # `-q ping` is lighter than plain ping; the broker can take a while to boot
+      # under host load, so give it a generous start_period + timeout so a slow
+      # (but healthy) start doesn't get marked unhealthy and abort `compose up`.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 15s
       retries: 10
+      start_period: 90s
     restart: unless-stopped
 
   # ── Flower (Celery monitoring) ─────────────────────────

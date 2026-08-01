@@ -33,6 +33,7 @@ from apps.api.modules.tax.rate_config import TaxRateConfig  # noqa: F401
 from apps.api.modules.admin.models import PlatformAdmin, AuditLog, PendingAdminAction, SuspensionAppeal  # noqa: F401
 from apps.api.modules.agent_network.models import Agent, AgentApplication, AgentCommission, OnboardingReferral, CommissionRateConfig, AgentTarget, AgentPayoutBatch, AgentPayoutAllocation  # noqa: F401
 from apps.api.modules.settlements.models import MerchantSettlement, MerchantLedgerEntry  # noqa: F401
+from apps.api.modules.expenses.models import Expense  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
