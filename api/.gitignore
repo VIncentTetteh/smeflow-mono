@@ -54,3 +54,4 @@ secrets/
 *.pdf
 *.qr.png
 tmp/
+media/
