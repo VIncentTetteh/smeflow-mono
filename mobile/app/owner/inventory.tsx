@@ -617,7 +617,7 @@ export default function InventoryScreen() {
           style={{
             minWidth: 38, height: 38, borderRadius: 12,
             paddingHorizontal: 12,
-            backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: colors.inverse, alignItems: 'center', justifyContent: 'center',
             flexDirection: 'row', gap: 6,
           }}>
           <MaterialCommunityIcons name="plus" size={18} color="#fdf7eb" />
@@ -1115,7 +1115,7 @@ export default function InventoryScreen() {
                   style={{
                     width: 48,
                     borderRadius: 10,
-                    backgroundColor: colors.ink,
+                    backgroundColor: colors.inverse,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
@@ -1150,7 +1150,7 @@ export default function InventoryScreen() {
                 );
               }}
               style={{
-                marginTop: 4, height: 46, borderRadius: 12, backgroundColor: colors.ink,
+                marginTop: 4, height: 46, borderRadius: 12, backgroundColor: colors.inverse,
                 alignItems: 'center', justifyContent: 'center',
                 opacity: (createItem.isPending || !itemName || !itemSellPrice) ? 0.4 : 1,
               }}
@@ -1166,7 +1166,7 @@ export default function InventoryScreen() {
 
       <StatusBar hidden={showBarcodeScanner} />
       <Modal visible={showBarcodeScanner} animationType="slide" onRequestClose={() => closeBarcodeScanner(true)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.ink }} edges={['top', 'bottom']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.inverse }} edges={['top', 'bottom']}>
           <View style={{
             paddingHorizontal: 16,
             paddingTop: Math.max(insets.top, 16) + 8,
@@ -1198,7 +1198,7 @@ export default function InventoryScreen() {
               style={{ flex: 1 }}
             />
           )}
-          <View style={{ padding: 16, backgroundColor: colors.ink }}>
+          <View style={{ padding: 16, backgroundColor: colors.inverse }}>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center' }}>
               The scanned barcode will be saved to this item for fast lookup at checkout.
             </Text>

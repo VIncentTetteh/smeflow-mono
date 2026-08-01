@@ -242,7 +242,7 @@ function CashierSell({ colors, fonts, items, loading }: ReturnType<typeof useThe
         <View style={{ paddingHorizontal: 16, paddingBottom: 20, paddingTop: 10, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }}>
           <TouchableOpacity onPress={() => setReceipt(null)} style={{
             height: 52, borderRadius: 14,
-            backgroundColor: colors.ink,
+            backgroundColor: colors.inverse,
             alignItems: 'center', justifyContent: 'center',
           }}>
             <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 16, color: '#fdf7eb' }}>Done · New Sale</Text>
@@ -471,7 +471,7 @@ function CashierSell({ colors, fonts, items, loading }: ReturnType<typeof useThe
                 setCustomAmt('');
               }}
               style={{
-                height: 46, borderRadius: 12, backgroundColor: colors.ink,
+                height: 46, borderRadius: 12, backgroundColor: colors.inverse,
                 alignItems: 'center', justifyContent: 'center',
                 opacity: (!customAmt || Number(customAmt) <= 0) ? 0.4 : 1,
               }}
@@ -587,7 +587,7 @@ function CashierShift({ colors, fonts }: ReturnType<typeof useTheme>) {
             onPress={handleClose}
             style={{
               flex: 1, height: 48, borderRadius: 12,
-              backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: colors.inverse, alignItems: 'center', justifyContent: 'center',
             }}>
             <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 14, color: '#fdf7eb' }}>Close shift</Text>
           </TouchableOpacity>
@@ -644,7 +644,7 @@ export default function CashierScreen() {
       {/* Dark cashier header */}
       <View style={{
         paddingHorizontal: 14, paddingVertical: 12,
-        backgroundColor: colors.ink,
+        backgroundColor: colors.inverse,
         flexDirection: 'row', alignItems: 'center', gap: 10,
       }}>
         <View style={{

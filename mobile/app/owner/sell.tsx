@@ -110,7 +110,7 @@ function POSCart({
         </View>
         <TouchableOpacity onPress={onScanBarcode} style={{
           width: 38, height: 38, borderRadius: 12,
-          backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: colors.inverse, alignItems: 'center', justifyContent: 'center',
         }}>
           <MaterialCommunityIcons name="barcode-scan" size={18} color="#fdf7eb" />
         </TouchableOpacity>
@@ -213,7 +213,7 @@ function POSCart({
                 </Text>
                 <TouchableOpacity onPress={() => updateQty(line.item.id, 1)} style={{
                   width: 28, height: 28, borderRadius: 14,
-                  backgroundColor: colors.ink,
+                  backgroundColor: colors.inverse,
                   alignItems: 'center', justifyContent: 'center',
                 }}>
                   <MaterialCommunityIcons name="plus" size={14} color="#fff" />
@@ -758,7 +758,7 @@ function POSSuccess({
             borderTopWidth: 1, borderTopColor: colors.border,
             flexDirection: 'row', alignItems: 'center', gap: 10,
           }}>
-            <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: colors.ink, opacity: 0.85 }} />
+            <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: colors.inverse, opacity: 0.85 }} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12, fontFamily: fonts.bodySemiBold, color: colors.brand }}>
                 Paid via {methodLabel}
@@ -796,7 +796,7 @@ function POSSuccess({
       <View style={{ paddingHorizontal: 16, paddingBottom: 20, paddingTop: 10, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }}>
         <TouchableOpacity onPress={onDone} style={{
           height: 52, borderRadius: 14,
-          backgroundColor: colors.ink,
+          backgroundColor: colors.inverse,
           alignItems: 'center', justifyContent: 'center',
         }}>
           <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 16, color: '#fdf7eb' }}>Done · New sale</Text>
@@ -1111,7 +1111,7 @@ export default function SellScreen() {
       )}
       <StatusBar hidden={showScanner} />
       <Modal visible={showScanner} animationType="slide" onRequestClose={closeScanner}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.ink }} edges={['top', 'bottom']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.inverse }} edges={['top', 'bottom']}>
           <View style={{
             paddingHorizontal: 16,
             paddingTop: Math.max(insets.top, 16) + 8,
@@ -1143,7 +1143,7 @@ export default function SellScreen() {
               style={{ flex: 1 }}
             />
           )}
-          <View style={{ padding: 16, backgroundColor: colors.ink }}>
+          <View style={{ padding: 16, backgroundColor: colors.inverse }}>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center' }}>
               If the barcode is not found, it will be copied into search so you can check inventory manually.
             </Text>

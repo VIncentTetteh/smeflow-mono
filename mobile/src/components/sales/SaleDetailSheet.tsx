@@ -308,7 +308,7 @@ export function SaleDetailSheet({ saleId, onClose }: Props) {
                       <TouchableOpacity
                         disabled={recordCreditPayment.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0}
                         onPress={() => recordCreditPayment.mutate({ sale_id: String(sale.id), amount: Number(repaymentAmount), payment_method: 'cash' }, { onSuccess: () => setRepaymentAmount(''), onError: (e: Error) => Alert.alert('Payment not recorded', e.message) })}
-                        style={{ flex: 1, height: 42, borderRadius: 9, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', opacity: recordCreditPayment.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0 ? 0.5 : 1 }}
+                        style={{ flex: 1, height: 42, borderRadius: 9, backgroundColor: colors.inverse, alignItems: 'center', justifyContent: 'center', opacity: recordCreditPayment.isPending || !repaymentAmount.trim() || Number(repaymentAmount) <= 0 ? 0.5 : 1 }}
                       >
                         <Text style={{ color: '#fff' }}>{recordCreditPayment.isPending ? 'Recording…' : 'Record manual payment'}</Text>
                       </TouchableOpacity>

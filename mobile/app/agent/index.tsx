@@ -153,7 +153,7 @@ export default function AgentScreen() {
             </View>
 
             {/* Wallet */}
-            <View style={{ backgroundColor: colors.ink, borderRadius: 16, padding: 14 }}>
+            <View style={{ backgroundColor: colors.inverse, borderRadius: 16, padding: 14 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   {/* G-M3: dynamic label */}
@@ -219,7 +219,7 @@ export default function AgentScreen() {
               <TouchableOpacity
                 onPress={() => router.push('/agent/onboard')}
                 style={{
-                  flex: 2, height: 50, borderRadius: 14, backgroundColor: colors.ink,
+                  flex: 2, height: 50, borderRadius: 14, backgroundColor: colors.inverse,
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}
               >

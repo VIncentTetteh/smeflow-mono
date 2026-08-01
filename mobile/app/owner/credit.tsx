@@ -186,7 +186,7 @@ export default function CreditScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.brand} />}
       >
         {/* Score card — dark */}
-        <View style={{ backgroundColor: colors.ink, borderRadius: 16, padding: 16, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: colors.inverse, borderRadius: 16, padding: 16, overflow: 'hidden' }}>
           <View style={{ position: 'absolute', top: -20, right: -20, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(212,162,58,0.2)' }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <Text style={{ fontSize: 11, color: 'rgba(245,239,225,0.6)', fontFamily: fonts.bodySemiBold, textTransform: 'uppercase', letterSpacing: 0.8 }}>

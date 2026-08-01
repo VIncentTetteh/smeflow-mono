@@ -40,7 +40,9 @@ export function OfflineBanner({ style }: OfflineBannerProps) {
     >
       <Text
         style={{
-          color: isOffline ? colors.ink : colors.brand,
+          // The banner bg is a light gold/green tint in BOTH themes, so use the
+          // non-swapping dark ink — colors.ink turns light in dark mode → invisible.
+          color: isOffline ? colors.inverse : colors.brand,
           fontFamily: fonts.bodySemiBold,
           fontSize: 13,
         }}

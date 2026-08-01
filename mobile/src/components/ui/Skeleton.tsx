@@ -52,11 +52,11 @@ export function Skeleton({
 }
 
 export function CardSkeleton() {
-  const { spacing } = useTheme();
+  const { spacing, colors } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 10,
         gap: spacing.sm,
         padding: spacing.md,

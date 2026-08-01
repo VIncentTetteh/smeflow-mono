@@ -200,7 +200,7 @@ export default function NewInvoiceScreen() {
             disabled={!canSubmit}
             onPress={handleSubmit}
             style={{
-              height: 48, borderRadius: 13, backgroundColor: colors.ink,
+              height: 48, borderRadius: 13, backgroundColor: colors.inverse,
               alignItems: 'center', justifyContent: 'center',
               opacity: canSubmit ? 1 : 0.4,
             }}

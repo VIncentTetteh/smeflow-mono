@@ -256,7 +256,7 @@ function QuickActionsStrip() {
           </View>
           <TouchableOpacity
             onPress={() => { setShowPicker(false); setEditing(false); }}
-            style={{ marginTop: 20, height: 46, borderRadius: 12, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}
+            style={{ marginTop: 20, height: 46, borderRadius: 12, backgroundColor: colors.inverse, alignItems: 'center', justifyContent: 'center' }}
           >
             <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 14, color: '#fdf7eb' }}>Done</Text>
           </TouchableOpacity>

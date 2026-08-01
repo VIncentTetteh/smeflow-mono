@@ -137,7 +137,7 @@ export default function InvoicesScreen() {
           onPress={() => router.push('/owner/new-invoice' as never)}
           style={{
             paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-            backgroundColor: colors.ink, flexDirection: 'row', alignItems: 'center', gap: 5,
+            backgroundColor: colors.inverse, flexDirection: 'row', alignItems: 'center', gap: 5,
           }}
         >
           <MaterialCommunityIcons name="plus" size={14} color="#fdf7eb" />
@@ -351,7 +351,7 @@ export default function InvoicesScreen() {
                             },
                           );
                         }}
-                        style={{ flex: 1, minHeight: 44, borderRadius: 9, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, opacity: recordCreditPayment.isPending ? 0.6 : 1 }}
+                        style={{ flex: 1, minHeight: 44, borderRadius: 9, backgroundColor: colors.inverse, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, opacity: recordCreditPayment.isPending ? 0.6 : 1 }}
                       >
                         <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center' }}>Record cash payment</Text>
                       </TouchableOpacity>

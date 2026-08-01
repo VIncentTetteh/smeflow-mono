@@ -116,7 +116,7 @@ export default function ReferralsScreen() {
             onPress={handleCopy}
             style={{
               paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9,
-              backgroundColor: colors.ink,
+              backgroundColor: colors.inverse,
             }}
           >
             <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 13, color: '#fdf7eb' }}>Copy</Text>
@@ -159,7 +159,7 @@ export default function ReferralsScreen() {
             disabled={sendReferral.isPending}
             style={{
               height: 44, paddingHorizontal: 14, borderRadius: 12,
-              backgroundColor: colors.ink, justifyContent: 'center',
+              backgroundColor: colors.inverse, justifyContent: 'center',
               opacity: sendReferral.isPending ? 0.6 : 1,
             }}
           >

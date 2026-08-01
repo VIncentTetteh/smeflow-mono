@@ -532,7 +532,7 @@ export default function PayrollScreen() {
                       width: 36,
                       height: 36,
                       borderRadius: 18,
-                      backgroundColor: colors.ink,
+                      backgroundColor: colors.inverse,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}

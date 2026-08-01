@@ -139,7 +139,7 @@ export default function NotificationsScreen() {
                     <TouchableOpacity
                       disabled={retryEvent.isPending}
                       onPress={() => retryEvent.mutate(event.id)}
-                      style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9, backgroundColor: colors.ink, opacity: retryEvent.isPending ? 0.6 : 1 }}
+                      style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9, backgroundColor: colors.inverse, opacity: retryEvent.isPending ? 0.6 : 1 }}
                     >
                       <Text style={{ color: '#fff', fontFamily: fonts.bodySemiBold }}>Retry</Text>
                     </TouchableOpacity>

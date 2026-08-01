@@ -126,7 +126,7 @@ function SuccessView({
           onPress={onKYC}
           style={{
             width: '100%', height: 48, borderRadius: 12,
-            backgroundColor: colors.ink,
+            backgroundColor: colors.inverse,
             alignItems: 'center', justifyContent: 'center',
           }}
         >

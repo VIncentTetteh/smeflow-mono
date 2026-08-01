@@ -22,6 +22,7 @@ export const ALL_QUICK_ACTIONS: QuickAction[] = [
   { id: 'payments',   icon: 'wallet-outline',          label: 'Payments',   route: '/owner/payments-history' },
   { id: 'inventory',  icon: 'package-variant',         label: 'Stock',      route: '/owner/inventory' },
   { id: 'analytics',  icon: 'trending-up',             label: 'Analytics',  route: '/owner/analytics' },
+  { id: 'expenses',   icon: 'cash-minus',              label: 'Expenses',   route: '/owner/expenses' },
   { id: 'customers',  icon: 'account-group-outline',   label: 'Customers',  route: '/owner/customers' },
   { id: 'payroll',    icon: 'account-cash-outline',    label: 'Payroll',    route: '/owner/payroll' },
   { id: 'tax',        icon: 'file-chart-outline',      label: 'Tax',        route: '/owner/tax' },

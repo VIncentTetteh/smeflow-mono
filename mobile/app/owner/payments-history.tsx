@@ -242,7 +242,7 @@ export default function PaymentsScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => void refetch()}
-            style={{ paddingVertical: 9, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.ink }}>
+            style={{ paddingVertical: 9, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.inverse }}>
             <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: '#fdf7eb' }}>Tap to retry</Text>
           </TouchableOpacity>
         </View>
@@ -259,7 +259,7 @@ export default function PaymentsScreen() {
         }}>
           Settlement wallet
         </Text>
-        <View style={{ backgroundColor: colors.ink, borderRadius: 16, padding: 16, marginBottom: 18 }}>
+        <View style={{ backgroundColor: colors.inverse, borderRadius: 16, padding: 16, marginBottom: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 11, color: 'rgba(253,247,235,0.58)', fontFamily: fonts.bodySemiBold, textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -413,7 +413,7 @@ export default function PaymentsScreen() {
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 borderRadius: 10,
-                backgroundColor: colors.ink,
+                backgroundColor: colors.inverse,
                 opacity: provisionDva.isPending ? 0.6 : 1,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -750,7 +750,7 @@ export default function PaymentsScreen() {
               style={{
                 minHeight: 42,
                 borderRadius: 11,
-                backgroundColor: colors.ink,
+                backgroundColor: colors.inverse,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -773,7 +773,7 @@ export default function PaymentsScreen() {
           GhQR · Accept by scan
         </Text>
         <View style={{
-          backgroundColor: colors.ink, borderRadius: 16, padding: 16, marginBottom: 18,
+          backgroundColor: colors.inverse, borderRadius: 16, padding: 16, marginBottom: 18,
           flexDirection: 'row', gap: 14, alignItems: 'center',
         }}>
           <View style={{

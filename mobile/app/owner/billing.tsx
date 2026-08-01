@@ -123,7 +123,7 @@ export default function BillingScreen() {
         <Text style={{ fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 12 }}>
           Could not load billing data.
         </Text>
-        <TouchableOpacity onPress={() => void refetch()} style={{ paddingVertical: 9, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.ink }}>
+        <TouchableOpacity onPress={() => void refetch()} style={{ paddingVertical: 9, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.inverse }}>
           <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: '#fdf7eb' }}>Retry</Text>
         </TouchableOpacity>
       </SafeAreaView>

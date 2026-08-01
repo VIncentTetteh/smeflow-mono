@@ -201,7 +201,7 @@ export default function TaxScreen() {
           </View>
         )}
 
-        <View style={{ backgroundColor: colors.ink, borderRadius: 18, padding: 18, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: colors.inverse, borderRadius: 18, padding: 18, overflow: 'hidden' }}>
           <View style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(212,162,58,0.15)' }} />
           <Text style={{ fontSize: 10.5, fontFamily: fonts.bodySemiBold, letterSpacing: 0.8, textTransform: 'uppercase', color: 'rgba(245,239,225,0.55)' }}>
             {periodLabel} return · due {formatDate(dueDate)}

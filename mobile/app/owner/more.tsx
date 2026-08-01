@@ -24,6 +24,7 @@ const SECTIONS: Array<{ title: string; items: MenuItem[] }> = [
     title: 'Finance',
     items: [
       { icon: 'trending-up',          label: 'Analytics',         sub: 'Revenue, P&L, cash flow, customers',  route: '/owner/analytics' },
+      { icon: 'cash-minus',           label: 'Expenses',          sub: 'Rent, transport, bills — see true profit', route: '/owner/expenses' },
       { icon: 'credit-card-outline',  label: 'Credit & Loans',    sub: 'Credit score and loan requests',       route: '/owner/credit' },
       { icon: 'account-cash-outline', label: 'Payroll',           sub: 'Employees and salary runs',            route: '/owner/payroll' },
       { icon: 'file-chart-outline',   label: 'Tax & Compliance',  sub: 'VAT, GRA filings, deadlines',          route: '/owner/tax' },
