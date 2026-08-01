@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.database import get_db
@@ -235,6 +235,40 @@ async def delete_item(
 ) -> None:
     svc = InventoryService(db)
     await svc.soft_delete_item(business_id, item_id, user_id)
+
+
+@router.post("/items/{item_id}/image", response_model=ItemResponse)
+async def upload_item_image(
+    item_id: UUID,
+    request: Request,
+    file: UploadFile = File(...),
+    business_id: UUID = Depends(get_current_business_id),
+    _role: str = Depends(RequireRole("owner", "manager")),
+    db: AsyncSession = Depends(get_db),
+) -> ItemResponse:
+    """Upload a product photo for the storefront catalog."""
+    from libs.image_storage import ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES, store_item_image
+
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, "Image must be JPEG, PNG or WebP.")
+    data = await file.read()
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(400, "Image is too large (max 5 MB).")
+
+    svc = InventoryService(db)
+    item = await svc._get_item(business_id, item_id)  # validates ownership + not deleted
+    url, key = store_item_image(
+        data=data,
+        content_type=file.content_type,
+        business_id=str(business_id),
+        item_id=str(item_id),
+        request_base_url=str(request.base_url),
+    )
+    item.image_url = url
+    item.image_key = key
+    await db.commit()
+    await db.refresh(item)
+    return ItemResponse.from_orm_with_flags(item)
 
 
 @router.post("/adjust", response_model=StockAdjustmentResponse, status_code=201)

@@ -4,6 +4,7 @@ All steps are local DB transactions with async event emission for downstream ste
 """
 
 import base64
+import json
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -296,7 +297,13 @@ class SalesService:
         return result
 
     async def create_paystack_sale_intent(
-        self, business_id: UUID, user_id: UUID, data: SaleCreate
+        self,
+        business_id: UUID,
+        user_id: UUID | None,
+        data: SaleCreate,
+        *,
+        callback_url: str | None = None,
+        source: str | None = None,
     ) -> PaymentIntentResponse:
         if data.payment_method != "paystack":
             raise SMEFlowError(
@@ -338,7 +345,8 @@ class SalesService:
             metadata_={
                 "intent_type": "sale_paystack",
                 "sale_data": data.model_dump(mode="json"),
-                "user_id": str(user_id),
+                "user_id": str(user_id) if user_id else None,
+                "source": source,
                 "expires_at": expires_at.isoformat(),
             },
         )
@@ -363,7 +371,9 @@ class SalesService:
                     "intent_type": "sale_paystack",
                     "payment_id": str(payment.id),
                     "business_id": str(business_id),
+                    "source": source,
                 },
+                callback_url=callback_url,
             )
             payment_url = initialized.get("authorization_url")
             if not payment_url:
@@ -675,7 +685,8 @@ class SalesService:
         if intent_type not in {"sale_momo", "sale_paystack"}:
             raise ConflictError("Payment is not a sale payment intent.")
         data = SaleCreate.model_validate(metadata.get("sale_data") or {})
-        user_id = UUID(str(metadata.get("user_id")))
+        raw_uid = metadata.get("user_id")
+        user_id = UUID(str(raw_uid)) if raw_uid else None  # None for guest/storefront orders
         item_lines = await self._resolve_items(payment.business_id, data.items)
         subtotal = sum(line["line_total"] for line in item_lines)
         total = max(subtotal - data.discount_amount, Decimal("0"))
@@ -745,6 +756,15 @@ class SalesService:
         from apps.api.modules.settlements.service import MerchantSettlementService
 
         await MerchantSettlementService(self.db).credit_collection(payment.id)
+
+        # Storefront orders: alert the owner (bell + live SSE) that a new online
+        # order was paid. Best-effort — never fail the sale on a notification error.
+        if metadata.get("source") == "storefront":
+            try:
+                await self._notify_storefront_order(payment.business_id, sale, data)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("storefront.notify_failed", error=str(exc))
+
         return SaleRecordResponse(
             sale_id=sale.id,
             invoice_id=invoice_id,
@@ -753,6 +773,40 @@ class SalesService:
             balance_due=sale.balance_due,
             message="Sale recorded after verified payment",
         )
+
+    async def _notify_storefront_order(self, business_id: UUID, sale, data) -> None:
+        """Owner alert (persistent bell + live SSE) for a paid storefront order."""
+        who = getattr(data, "customer_name", None) or getattr(data, "customer_phone", None) or "a customer"
+        title = "New storefront order"
+        message = f"Paid order of GH₵{sale.total} from {who}."
+        from apps.api.modules.notifications.alert_service import MerchantAlertService
+
+        await MerchantAlertService(self.db).upsert_alert(
+            business_id=business_id,
+            alert_type="storefront_order",
+            severity="info",
+            dedupe_key=f"storefront_order:{sale.id}",
+            title=title,
+            message=message,
+            resource_type="sale",
+            resource_id=str(sale.id),
+            action_path="/store/sales",
+            action_label="View order",
+        )
+        # Live SSE nudge (fire-and-forget)
+        try:
+            import redis.asyncio as aioredis
+
+            from apps.api.core.config import get_settings
+
+            r = await aioredis.from_url(get_settings().REDIS_URL)
+            payload = json.dumps(
+                {"business_id": str(business_id), "event_type": "storefront_order", "message": message}
+            )
+            await r.publish(f"notifications:{business_id}", payload)
+            await r.aclose()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("storefront.sse_publish_failed", error=str(exc))
 
     async def _trigger_first_sale_commission(self, business_id: UUID) -> None:
         try:

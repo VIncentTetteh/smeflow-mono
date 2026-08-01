@@ -7,7 +7,12 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.database import get_db
-from apps.api.core.dependencies import RequireRole, get_current_business_id, get_current_user_id
+from apps.api.core.dependencies import (
+    RequireFeature,
+    RequireRole,
+    get_current_business_id,
+    get_current_user_id,
+)
 from apps.api.core.exceptions import NotFoundError
 from apps.api.modules.business.repository import BusinessRepository
 from apps.api.modules.business.schemas import (
@@ -426,3 +431,111 @@ async def verify_momo_account(
     service = BusinessService(db)
     account = await service.verify_momo_account(business_id, account_id, body)
     return MoMoAccountResponse.model_validate(account)
+
+
+# ── Public storefront settings ─────────────────────────────────────────────────
+class StorefrontSettings(BaseModel):
+    enabled: bool
+    slug: str | None
+    tagline: str | None
+    whatsapp: str | None
+    url_path: str | None  # e.g. "/shop/ama-provisions"
+
+
+class StorefrontUpdate(BaseModel):
+    enabled: bool | None = None
+    slug: str | None = None
+    tagline: str | None = None
+    whatsapp: str | None = None
+
+
+def _storefront_settings(business) -> "StorefrontSettings":
+    slug = business.storefront_slug
+    return StorefrontSettings(
+        enabled=business.storefront_enabled,
+        slug=slug,
+        tagline=business.storefront_tagline,
+        whatsapp=business.storefront_whatsapp,
+        url_path=f"/shop/{slug}" if slug else None,
+    )
+
+
+@router.get("/storefront", response_model=StorefrontSettings)
+async def get_storefront_settings(
+    business_id: UUID = Depends(get_current_business_id),
+    db: AsyncSession = Depends(get_db),
+) -> StorefrontSettings:
+    business = await BusinessRepository(db).get_by_id(business_id)
+    if not business:
+        raise NotFoundError("Business not found")
+    return _storefront_settings(business)
+
+
+@router.get("/storefront/slug-check")
+async def check_storefront_slug(
+    slug: str,
+    business_id: UUID = Depends(get_current_business_id),
+    _role: str = Depends(RequireRole("owner", "manager")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    from sqlalchemy import select
+    from apps.api.modules.storefront.service import normalize_slug, validate_slug
+    from apps.api.modules.business.models import Business
+
+    normalized = normalize_slug(slug)
+    try:
+        validate_slug(normalized)
+    except Exception as exc:  # noqa: BLE001
+        return {"slug": normalized, "available": False, "reason": str(exc)}
+    existing = (
+        await db.execute(
+            select(Business.id).where(
+                Business.storefront_slug == normalized, Business.id != business_id
+            )
+        )
+    ).scalar_one_or_none()
+    return {"slug": normalized, "available": existing is None}
+
+
+@router.patch("/storefront", response_model=StorefrontSettings)
+async def update_storefront_settings(
+    body: StorefrontUpdate,
+    business_id: UUID = Depends(get_current_business_id),
+    _role: str = Depends(RequireRole("owner", "manager")),
+    _feat: None = Depends(RequireFeature("storefront")),
+    db: AsyncSession = Depends(get_db),
+) -> StorefrontSettings:
+    from sqlalchemy import select
+    from apps.api.core.exceptions import SMEFlowError
+    from apps.api.modules.business.models import Business
+    from apps.api.modules.storefront.service import normalize_slug, validate_slug
+
+    business = await BusinessRepository(db).get_by_id(business_id)
+    if not business:
+        raise NotFoundError("Business not found")
+
+    if body.slug is not None:
+        normalized = normalize_slug(body.slug)
+        validate_slug(normalized)
+        clash = (
+            await db.execute(
+                select(Business.id).where(
+                    Business.storefront_slug == normalized, Business.id != business_id
+                )
+            )
+        ).scalar_one_or_none()
+        if clash:
+            raise SMEFlowError("That shop link is already taken.", "SLUG_TAKEN", 409)
+        business.storefront_slug = normalized
+    if body.tagline is not None:
+        business.storefront_tagline = body.tagline.strip() or None
+    if body.whatsapp is not None:
+        business.storefront_whatsapp = body.whatsapp.strip() or None
+    if body.enabled is not None:
+        if body.enabled and not business.storefront_slug:
+            raise SMEFlowError("Set a shop link before enabling your storefront.", "SLUG_REQUIRED", 400)
+        business.storefront_enabled = body.enabled
+
+    await db.commit()
+    await db.refresh(business)
+    return _storefront_settings(business)

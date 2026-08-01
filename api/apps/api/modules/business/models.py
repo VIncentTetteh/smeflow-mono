@@ -32,6 +32,13 @@ class Business(Base):
         UniqueConstraint("owner_id", "name", name="uq_business_owner_name"),
         # TIN is issued per business entity in Ghana — globally unique when provided.
         Index("uq_business_tin", "tin", unique=True, postgresql_where="tin IS NOT NULL"),
+        # Storefront slug is the public URL handle — globally unique when set.
+        Index(
+            "uq_business_storefront_slug",
+            "storefront_slug",
+            unique=True,
+            postgresql_where="storefront_slug IS NOT NULL",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -61,6 +68,11 @@ class Business(Base):
     ghqr_merchant_id: Mapped[str | None] = mapped_column(String(50))
     email: Mapped[str | None] = mapped_column(String(255))
     email_enabled: Mapped[bool] = mapped_column(Boolean, server_default="true", default=True)
+    # Public storefront — a shareable /shop/<slug> catalog customers can buy from
+    storefront_slug: Mapped[str | None] = mapped_column(String(60))
+    storefront_enabled: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
+    storefront_tagline: Mapped[str | None] = mapped_column(String(160))
+    storefront_whatsapp: Mapped[str | None] = mapped_column(String(20))
     paystack_customer_code: Mapped[str | None] = mapped_column(String(100))
     paystack_customer_id: Mapped[int | None] = mapped_column()
     paystack_subscription_code: Mapped[str | None] = mapped_column(String(100))

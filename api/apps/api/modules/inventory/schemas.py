@@ -32,6 +32,8 @@ class ItemUpdate(BaseModel):
     sku: str | None = None
     barcode: str | None = None
     is_active: bool | None = None
+    description: str | None = Field(None, max_length=2000)
+    storefront_visible: bool | None = None
 
 
 class ItemResponse(BaseModel):
@@ -46,6 +48,9 @@ class ItemResponse(BaseModel):
     barcode: str | None
     is_active: bool
     category_id: UUID | None
+    description: str | None = None
+    image_url: str | None = None
+    storefront_visible: bool = True
     created_at: datetime
     updated_at: datetime
     is_low_stock: bool = False
