@@ -41,6 +41,8 @@ interface UserProfile {
   id: string;
   phone: string;
   name: string | null;
+  email?: string | null;
+  google_linked?: boolean;
   kyc_status?: string;
 }
 
@@ -98,6 +100,8 @@ export function applySessionBootstrap(data: BootstrapResult) {
       id: data.user.id,
       phone: data.user.phone,
       name: data.user.name ?? '',
+      email: data.user.email,
+      googleLinked: data.user.google_linked,
       kycStatus: data.user.kyc_status,
     },
     business: data.business,

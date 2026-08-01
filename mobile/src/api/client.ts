@@ -1,22 +1,80 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { notifyAuthExpired } from '@/navigation/authEvents';
 import { useAuthStore } from '@/store/auth';
 
-function defaultDevApiBaseUrl() {
-  if (!__DEV__) {
-    return '';
-  }
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8000';
-  }
-  return 'http://localhost:8000';
+const DEFAULT_DEV_API_PORT = '8010';
+const LAN_OR_LOCALHOST =
+  /^https?:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.0\.0\.1|\[?::1\]?)/;
+
+/**
+ * The host:port the app used to reach Metro (e.g. "192.168.100.44:8081").
+ * In Expo Go / dev builds this is the dev machine's CURRENT LAN IP, so using it
+ * means the API URL tracks network changes automatically — no more editing
+ * EXPO_PUBLIC_API_BASE_URL every time you switch Wi-Fi.
+ */
+function metroHost(): string | null {
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    // Fallbacks across Expo SDK/runtime variants:
+    (Constants as unknown as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig
+      ?.debuggerHost ??
+    (Constants as unknown as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost ??
+    (Constants as unknown as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } })
+      .manifest2?.extra?.expoGo?.debuggerHost;
+  const host = hostUri?.split(':')[0];
+  return host || null;
 }
 
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || defaultDevApiBaseUrl();
+function portFromUrl(url: string): string | null {
+  const match = url.match(/^https?:\/\/[^/:]+:(\d+)/);
+  return match ? match[1] : null;
+}
+
+/** A real private LAN IPv4 — i.e. a same-machine dev server we can safely target. */
+function isPrivateIp(host: string): boolean {
+  return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+}
+
+function resolveApiBaseUrl(): string {
+  const explicit = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
+
+  // Production: rely on the build-time URL (validated below).
+  if (!__DEV__) return explicit;
+
+  // Dev pointing at a real remote (e.g. staging / a tunnelled backend) — honor it.
+  if (explicit && !LAN_OR_LOCALHOST.test(explicit)) return explicit;
+
+  // Auto-track the dev machine's IP ONLY when Metro is reached over a real LAN IP
+  // (same-machine dev server). This is what makes a stale hardcoded LAN IP survive
+  // a network switch. If Metro is on a tunnel/domain (Expo tunnel) or unknown, we
+  // must NOT override — the backend is not at the Metro host — so honor `explicit`.
+  const metro = metroHost();
+  if (metro && isPrivateIp(metro)) {
+    const port =
+      process.env.EXPO_PUBLIC_DEV_API_PORT || portFromUrl(explicit) || DEFAULT_DEV_API_PORT;
+    return `http://${metro}:${port}`;
+  }
+
+  // Explicit LAN/localhost URL provided — use it as configured.
+  if (explicit) return explicit;
+
+  // No config at all: fall back to the platform's loopback to the host machine.
+  const port = process.env.EXPO_PUBLIC_DEV_API_PORT || DEFAULT_DEV_API_PORT;
+  const host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+  return `http://${host}:${port}`;
+}
+
+const apiBaseUrl = resolveApiBaseUrl();
+
+if (__DEV__) {
+  // Helps confirm which backend the app is actually talking to.
+  console.log(`[SMEflow] API base URL: ${apiBaseUrl}`);
+}
 
 // Guard: catch accidental LAN/localhost URLs shipping in non-dev builds
-if (__DEV__ === false && /https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.0\.0\.1)/.test(apiBaseUrl)) {
+if (__DEV__ === false && LAN_OR_LOCALHOST.test(apiBaseUrl)) {
   throw new Error(
     `[SMEflow] EXPO_PUBLIC_API_BASE_URL points to a local/LAN address (${apiBaseUrl}) in a non-dev build. ` +
     'Set the correct production URL in eas.json or your CI environment.'
