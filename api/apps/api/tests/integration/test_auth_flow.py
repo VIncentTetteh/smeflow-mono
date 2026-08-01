@@ -21,6 +21,11 @@ class TestOTPFlow:
                 new_callable=AsyncMock,
                 return_value=0,
             ),
+            patch(
+                "apps.api.modules.notifications.service.NotificationDispatcher.send",
+                new_callable=AsyncMock,
+                return_value={"status": "sent", "channel": "sms"},
+            ),
         ):
             resp = await async_client.post(
                 "/api/v1/auth/otp/request",
@@ -43,12 +48,54 @@ class TestOTPFlow:
                 new_callable=AsyncMock,
                 return_value=0,
             ),
+            patch(
+                "apps.api.modules.notifications.service.NotificationDispatcher.send",
+                new_callable=AsyncMock,
+                return_value={"status": "sent", "channel": "sms"},
+            ),
         ):
             resp = await async_client.post(
                 "/api/v1/auth/otp/request",
                 json={"phone": "0244123456"},  # local format
             )
         assert resp.status_code == 200
+
+    async def test_request_otp_dispatches_sms_when_only_techieszon_configured(
+        self, async_client: AsyncClient, monkeypatch
+    ):
+        """Regression test: the OTP-request SMS gate must be provider-agnostic,
+        not gated on AT_SMS_ENABLED specifically (see sms_provider_configured)."""
+        from apps.api.core.config import get_settings
+
+        settings = get_settings()
+        monkeypatch.setattr(settings, "TECHIESZON_SMS_ENABLED", True)
+        monkeypatch.setattr(settings, "TECHIESZON_SMS_API_KEY", "test-key")
+        monkeypatch.setattr(settings, "AT_API_KEY", "")
+        monkeypatch.setattr(settings, "HUBTEL_CLIENT_ID", "")
+
+        dispatch_mock = AsyncMock(return_value={"status": "sent", "channel": "sms"})
+        with (
+            patch(
+                "apps.api.modules.auth.router._check_per_phone_otp_rate",
+                new_callable=AsyncMock,
+            ),
+            patch("apps.api.modules.auth.service.store_otp", new_callable=AsyncMock),
+            patch(
+                "apps.api.modules.auth.service.get_otp_attempt_count",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch(
+                "apps.api.modules.notifications.service.NotificationDispatcher.send",
+                dispatch_mock,
+            ),
+        ):
+            resp = await async_client.post(
+                "/api/v1/auth/otp/request",
+                json={"phone": "+233244123457"},
+            )
+        assert resp.status_code == 200
+        dispatch_mock.assert_awaited_once()
 
     async def test_invalid_phone_returns_422(self, async_client: AsyncClient):
         resp = await async_client.post(

@@ -21,6 +21,11 @@ class User(Base):
         PGUUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
     )
     phone: Mapped[str] = mapped_column(String(15), unique=True, nullable=False, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    # Google's stable per-user "sub" claim — survives email changes on the Google side.
+    google_sub: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True, index=True
+    )
     name: Mapped[str | None] = mapped_column(String(255))
     ghana_card_id: Mapped[str | None] = mapped_column(String(50), unique=True)
     tin: Mapped[str | None] = mapped_column(String(20), unique=True)
@@ -40,3 +45,7 @@ class User(Base):
 
     # Relationships — BusinessMember defined in business.models (circular avoided via string ref)
     businesses: Mapped[list["BusinessMember"]] = relationship(back_populates="user")
+
+    @property
+    def google_linked(self) -> bool:
+        return self.google_sub is not None

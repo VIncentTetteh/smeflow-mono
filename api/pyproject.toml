@@ -54,13 +54,15 @@ dependencies = [
     "sentry-sdk[fastapi]>=2",
     # Rate limiting
     "slowapi>=0.1.9",
-    # LLM (chat fallback — xAI Grok via OpenAI-compatible API)
+    # LLM: Claude (RAG assistant) + OpenAI-compatible client (Groq Whisper voice)
+    "anthropic>=0.49",
     "openai>=1.0",
     # Utilities
     "python-dateutil>=2.9",
     "pytz>=2024.1",
     "uuid6>=2022.10.25",
     "resend>=2.30.0",
+    "google-auth>=2.35",
 ]
 
 [project.optional-dependencies]

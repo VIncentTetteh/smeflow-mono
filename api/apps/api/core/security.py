@@ -91,8 +91,12 @@ def _hash_otp(otp: str) -> str:
     return hashlib.sha256(otp.encode()).hexdigest()
 
 
-async def store_otp(phone: str, otp: str) -> None:
+async def store_otp(identifier: str, otp: str) -> None:
     """Hash the OTP with SHA-256 and store the digest in Redis with TTL.
+
+    `identifier` is a phone number or email address — the "otp" prefix plus
+    each identifier's distinct format (phone vs email) keeps the two
+    namespaces from ever colliding.
 
     Storing only the hash means that even if Redis is compromised an attacker
     cannot recover the original six-digit code in useful time (SHA-256 of a
@@ -100,39 +104,39 @@ async def store_otp(phone: str, otp: str) -> None:
     the 5-minute TTL plus rate limiting makes it non-viable in practice).
     """
     cache = RedisCache(get_otp_redis(), prefix="otp")
-    await cache.set(phone, _hash_otp(otp), ttl=settings.OTP_EXPIRE_SECONDS)
+    await cache.set(identifier, _hash_otp(otp), ttl=settings.OTP_EXPIRE_SECONDS)
     # Track attempt count separately (rate limiting)
     attempt_cache = RedisCache(get_otp_redis(), prefix="otp_attempts")
-    await attempt_cache.increment(phone, ttl=300)
+    await attempt_cache.increment(identifier, ttl=300)
 
 
 _OTP_VERIFY_MAX_ATTEMPTS = 5  # max wrong guesses per OTP
 _OTP_VERIFY_LOCKOUT_SECONDS = 900  # 15-minute lockout after exhaustion
 
 
-async def is_otp_verify_locked(phone: str) -> bool:
-    """Return True if the phone is locked out from verifying OTPs."""
+async def is_otp_verify_locked(identifier: str) -> bool:
+    """Return True if the identifier (phone or email) is locked out from verifying OTPs."""
     cache = RedisCache(get_otp_redis(), prefix="otp_verify_lock")
-    return await cache.exists(phone)
+    return await cache.exists(identifier)
 
 
-async def _record_verify_failure(phone: str) -> int:
-    """Increment the verify-failure counter; lock the phone when limit is reached.
+async def _record_verify_failure(identifier: str) -> int:
+    """Increment the verify-failure counter; lock the identifier when limit is reached.
 
     Returns the new failure count.
     """
     fail_cache = RedisCache(get_otp_redis(), prefix="otp_verify_fail")
-    count = await fail_cache.increment(phone, ttl=_OTP_VERIFY_LOCKOUT_SECONDS)
+    count = await fail_cache.increment(identifier, ttl=_OTP_VERIFY_LOCKOUT_SECONDS)
     if count >= _OTP_VERIFY_MAX_ATTEMPTS:
         lock_cache = RedisCache(get_otp_redis(), prefix="otp_verify_lock")
-        await lock_cache.set(phone, "1", ttl=_OTP_VERIFY_LOCKOUT_SECONDS)
+        await lock_cache.set(identifier, "1", ttl=_OTP_VERIFY_LOCKOUT_SECONDS)
         # Purge the stored OTP so it can't be replayed after lockout expires
         otp_cache = RedisCache(get_otp_redis(), prefix="otp")
-        await otp_cache.delete(phone)
+        await otp_cache.delete(identifier)
     return count
 
 
-async def verify_otp(phone: str, otp: str) -> bool:
+async def verify_otp(identifier: str, otp: str) -> bool:
     """Verify OTP by comparing SHA-256 hashes with constant-time compare.
 
     The stored value is the hex-digest written by store_otp().  We hash the
@@ -141,33 +145,33 @@ async def verify_otp(phone: str, otp: str) -> bool:
     OTP is single-use.
 
     Failed attempts are counted; after _OTP_VERIFY_MAX_ATTEMPTS failures the
-    phone is locked for _OTP_VERIFY_LOCKOUT_SECONDS (15 min) and the stored
+    identifier is locked for _OTP_VERIFY_LOCKOUT_SECONDS (15 min) and the stored
     OTP is purged so the attacker gains nothing even after the lockout expires.
     """
     # Fast-path: check lockout before touching the OTP key
-    if await is_otp_verify_locked(phone):
+    if await is_otp_verify_locked(identifier):
         return False
 
     cache = RedisCache(get_otp_redis(), prefix="otp")
-    stored = await cache.get(phone)
+    stored = await cache.get(identifier)
     if stored is not None:
         candidate_hash = _hash_otp(otp)
         if hmac.compare_digest(str(stored), candidate_hash):
             # Clear failure counter on success
             fail_cache = RedisCache(get_otp_redis(), prefix="otp_verify_fail")
-            await fail_cache.delete(phone)
-            await cache.delete(phone)
+            await fail_cache.delete(identifier)
+            await cache.delete(identifier)
             return True
 
     # Wrong code — record the failure (may trigger lockout)
-    await _record_verify_failure(phone)
+    await _record_verify_failure(identifier)
     return False
 
 
-async def get_otp_attempt_count(phone: str) -> int:
+async def get_otp_attempt_count(identifier: str) -> int:
     """Return number of OTP requests in the current 5-minute window."""
     cache = RedisCache(get_otp_redis(), prefix="otp_attempts")
-    val = await cache.get(phone)
+    val = await cache.get(identifier)
     return int(val) if val else 0
 
 

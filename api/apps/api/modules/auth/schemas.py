@@ -39,6 +39,31 @@ class OTPRequestResponse(BaseModel):
     expires_in_seconds: int = 300
 
 
+# ── Email OTP ─────────────────────────────────────────────────────────────────
+class EmailOTPRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class EmailOTPVerify(BaseModel):
+    email: str
+    otp: str = Field(..., min_length=4, max_length=6, pattern=r"^\d{4,6}$")
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+# ── Google Sign-In ────────────────────────────────────────────────────────────
+class GoogleAuthRequest(BaseModel):
+    id_token: str = Field(..., min_length=1)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
@@ -71,6 +96,8 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     phone: str
+    email: str | None = None
+    google_linked: bool = False
     name: str | None
     ghana_card_id: str | None
     tin: str | None

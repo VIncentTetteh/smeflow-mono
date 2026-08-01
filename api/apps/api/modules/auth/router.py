@@ -1,6 +1,6 @@
 """Auth endpoints: OTP request/verify, token refresh, logout."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,9 @@ from apps.api.core.security import verify_otp as verify_otp_code
 from apps.api.modules.auth.repository import UserRepository
 from apps.api.modules.auth.schemas import (
     BusinessSwitchRequest,
+    EmailOTPRequest,
+    EmailOTPVerify,
+    GoogleAuthRequest,
     KYCStatusResponse,
     KYCSubmitRequest,
     LogoutRequest,
@@ -78,11 +81,31 @@ async def _check_per_phone_otp_rate(phone: str) -> None:
         structlog.get_logger().warning("otp.rate_limit_redis_unavailable", phone=phone[-4:])
 
 
+async def _dispatch_otp_sms(phone: str, otp: str) -> None:
+    """Deliver the OTP SMS. Runs as a background task so the request returns
+    immediately — the SMS provider (Techieszon/Hubtel/AT) can take several
+    seconds, which otherwise pushes the mobile client past its request timeout."""
+    from apps.api.core.config import get_settings
+    from apps.api.modules.notifications.service import (
+        NotificationDispatcher,
+        NotificationMessage,
+        sms_provider_configured,
+    )
+
+    if not sms_provider_configured(get_settings()):
+        return
+    await NotificationDispatcher().send(
+        NotificationMessage(phone, f"Your SME Flow OTP is {otp}. It expires in 5 minutes."),
+        channel="sms",
+    )
+
+
 @router.post("/otp/request", response_model=OTPRequestResponse, status_code=200)
 @limiter.limit("5/minute")
 async def request_otp(
     request: Request,  # required by slowapi
     body: OTPRequest,
+    background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> OTPRequestResponse:
     """Send a 4-digit OTP to the given Ghana phone number.
@@ -103,18 +126,12 @@ async def request_otp(
 
     import structlog
 
-    from apps.api.modules.notifications.service import NotificationDispatcher, NotificationMessage
-
     settings = get_settings()
     # otp is None when Hubtel OTP is enabled — Hubtel delivers the SMS itself
     if otp is not None:
-        if settings.AT_SMS_ENABLED:
-            await NotificationDispatcher().send(
-                NotificationMessage(
-                    body.phone, f"Your SME Flow OTP is {otp}. It expires in 5 minutes."
-                ),
-                channel="sms",
-            )
+        # Deliver the SMS after the response is sent so the client isn't blocked
+        # on the (multi-second) SMS provider round-trip.
+        background.add_task(_dispatch_otp_sms, body.phone, otp)
         if settings.DEBUG_LOG_OTP and not settings.is_production:
             structlog.get_logger().info("otp.debug", otp=otp, note="DEBUG_LOG_OTP enabled")
 
@@ -526,3 +543,132 @@ async def confirm_phone_change(
         "account_recovery.phone_changed", user_id=str(user_id), new_phone=normalized_new
     )
     return {"message": "Phone number updated successfully. Please log in with your new number."}
+
+
+# ── Email OTP ────────────────────────────────────────────────────────────────
+
+
+async def _send_email_otp(email: str, otp: str, *, purpose: str) -> None:
+    from apps.api.core.config import get_settings
+    from apps.api.modules.notifications.service import send_email
+
+    settings = get_settings()
+    if settings.DEBUG_LOG_OTP and not settings.is_production:
+        import structlog
+
+        structlog.get_logger().info(
+            "otp.debug", otp=otp, channel="email", purpose=purpose, note="DEBUG_LOG_OTP enabled"
+        )
+
+    await send_email(
+        to=email,
+        subject="Your SMEflow verification code",
+        html=(
+            f"<p>Your SMEflow {purpose} code is <strong>{otp}</strong>. "
+            "It expires in 5 minutes. If you didn't request this, you can ignore this email.</p>"
+        ),
+    )
+
+
+@router.post("/email/link/initiate", status_code=200)
+@limiter.limit("5/minute")
+async def initiate_email_link(
+    request: Request,
+    body: EmailOTPRequest,
+    background: BackgroundTasks,
+    user_id=Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Step 1 of linking an email to the logged-in account: send it an OTP."""
+    from fastapi import HTTPException
+
+    await _check_per_phone_otp_rate(body.email)
+
+    existing = await UserRepository(db).get_by_email(body.email)
+    if existing and str(existing.id) != str(user_id):
+        raise HTTPException(409, "That email is already linked to another account")
+
+    service = AuthService(db)
+    otp = await service.request_email_otp(body.email)
+    background.add_task(_send_email_otp, body.email, otp, purpose="email-link")
+    return {"message": f"OTP sent to {body.email}. Use /email/link/confirm to complete."}
+
+
+@router.post("/email/link/confirm", response_model=UserResponse, status_code=200)
+async def confirm_email_link(
+    body: EmailOTPVerify,
+    user_id=Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Step 2 of linking an email: verify the OTP and attach it to the account."""
+    service = AuthService(db)
+    user = await service.link_email(user_id, body.email, body.otp)
+    return UserResponse.model_validate(user)
+
+
+@router.post("/email/login/request", status_code=200)
+@limiter.limit("5/minute")
+async def request_email_login(
+    request: Request,
+    body: EmailOTPRequest,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Send an OTP to log in with an already-linked email."""
+    from fastapi import HTTPException
+
+    await _check_per_phone_otp_rate(body.email)
+
+    existing = await UserRepository(db).get_by_email(body.email)
+    if existing is None:
+        raise HTTPException(
+            404,
+            "No account is linked to this email. Sign in with your phone number "
+            "first, then link this email from Settings.",
+        )
+
+    service = AuthService(db)
+    otp = await service.request_email_otp(body.email)
+    background.add_task(_send_email_otp, body.email, otp, purpose="login")
+    return {"message": f"OTP sent to {body.email}."}
+
+
+@router.post("/email/login/verify", response_model=TokenResponse, status_code=200)
+@limiter.limit("5/minute")
+async def verify_email_login(
+    request: Request,
+    body: EmailOTPVerify,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Verify an email OTP and return JWT access + refresh tokens."""
+    service = AuthService(db)
+    return await service.verify_email_otp_and_login(body.email, body.otp)
+
+
+# ── Google Sign-In ─────────────────────────────────────────────────────────────
+
+
+@router.post("/google/link", response_model=UserResponse, status_code=200)
+@limiter.limit("5/minute")
+async def link_google(
+    request: Request,
+    body: GoogleAuthRequest,
+    user_id=Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Attach a Google account to the logged-in user."""
+    service = AuthService(db)
+    user = await service.link_google_account(user_id, body.id_token)
+    return UserResponse.model_validate(user)
+
+
+@router.post("/google/login", response_model=TokenResponse, status_code=200)
+@limiter.limit("5/minute")
+async def google_login(
+    request: Request,
+    body: GoogleAuthRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Verify a Google id_token and return JWT access + refresh tokens."""
+    service = AuthService(db)
+    return await service.verify_google_id_token_and_login(body.id_token)
