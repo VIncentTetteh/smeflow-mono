@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
 
   const token =
+    cookieStore.get('store_token')?.value ??
     cookieStore.get('admin_token')?.value ??
     cookieStore.get('lender_token')?.value ??
     cookieStore.get('agent_token')?.value;

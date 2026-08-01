@@ -210,18 +210,42 @@ export function AdminNav() {
       {/* User footer */}
       <div style={{ marginTop: 16, padding: 10, borderRadius: 10, background: 'rgba(245,239,225,0.06)' }}>
         <div style={{ fontSize: 9.5, opacity: 0.45, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Signed in</div>
-        <div style={{ fontSize: 12, fontWeight: 600 }}>Admin</div>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }}>Administrator</div>
         <button
           onClick={handleLogout}
           style={{
-            all: 'unset', cursor: 'pointer',
-            fontSize: 10.5, color: 'rgba(245,239,225,0.4)',
-            marginTop: 4, display: 'block',
-            transition: 'color 0.12s',
+            all: 'unset',
+            boxSizing: 'border-box',
+            width: '100%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '9px 12px',
+            borderRadius: 9,
+            border: '1px solid rgba(245,239,225,0.2)',
+            color: 'rgba(245,239,225,0.75)',
+            fontSize: 12.5,
+            fontWeight: 600,
+            transition: 'background 0.12s, color 0.12s, border-color 0.12s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(245,239,225,0.8)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(245,239,225,0.4)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255,107,107,0.12)';
+            e.currentTarget.style.color = '#ff9b9b';
+            e.currentTarget.style.borderColor = 'rgba(255,107,107,0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'rgba(245,239,225,0.75)';
+            e.currentTarget.style.borderColor = 'rgba(245,239,225,0.2)';
+          }}
         >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
           Sign out
         </button>
       </div>

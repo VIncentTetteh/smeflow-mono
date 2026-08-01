@@ -20,12 +20,17 @@ async function handler(
 
   // Pick the token that matches the target API namespace so that an admin
   // session cookie never overrides a lender or agent token and vice-versa.
+  // The store portal calls non-namespaced backend paths (business, inventory,
+  // analytics, sales, ...), so store_token leads the fallback chain — it is the
+  // only portal that legitimately uses these paths for its normal operation and
+  // must never be shadowed by a stale admin/lender/agent cookie on the same browser.
   const namespace = path[0];
   const token =
     namespace === 'lender' ? cookieStore.get('lender_token')?.value
     : namespace === 'admin'  ? cookieStore.get('admin_token')?.value
     : namespace === 'agent'  ? cookieStore.get('agent_token')?.value
-    : (cookieStore.get('admin_token')?.value ??
+    : (cookieStore.get('store_token')?.value ??
+       cookieStore.get('admin_token')?.value ??
        cookieStore.get('lender_token')?.value ??
        cookieStore.get('agent_token')?.value);
 

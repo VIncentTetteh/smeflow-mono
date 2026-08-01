@@ -29,7 +29,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const config = error.config as (typeof error.config & { _adminRefreshAttempted?: boolean }) | undefined;
+    const config = error.config as
+      | (typeof error.config & { _adminRefreshAttempted?: boolean; _storeRefreshAttempted?: boolean })
+      | undefined;
     if (
       typeof window !== 'undefined' &&
       error.response?.status === 401 &&
@@ -46,10 +48,29 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // The store portal's access token is short-lived (~15 min) but the session
+    // cookie lasts 8h, so silently refresh once before giving up.
+    if (
+      typeof window !== 'undefined' &&
+      error.response?.status === 401 &&
+      window.location.pathname.startsWith('/store') &&
+      config &&
+      !config?._storeRefreshAttempted
+    ) {
+      config._storeRefreshAttempted = true;
+      try {
+        const refresh = await fetch('/api/auth/store/refresh', { method: 'POST' });
+        if (refresh.ok) return apiClient(config);
+      } catch {
+        // Fall through to login redirect below.
+      }
+    }
+
     if (typeof window !== 'undefined' && error.response?.status === 401) {
       const path = window.location.pathname;
       if (path.startsWith('/admin')) window.location.href = '/admin/login';
       else if (path.startsWith('/lender')) window.location.href = '/lender/login';
+      else if (path.startsWith('/store')) window.location.href = '/store/login';
       else window.location.href = '/agent/login';
     }
     return Promise.reject(error);

@@ -47,6 +47,16 @@ export function AgentNav() {
   const router = useRouter();
   const logout = useAgentAuth((s) => s.logout);
 
+  const signOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      /* clear client state regardless */
+    }
+    logout();
+    router.push('/agent/login');
+  };
+
   return (
     <nav
       style={{
@@ -110,18 +120,55 @@ export function AgentNav() {
         })}
       </ul>
 
-      {/* Sign out */}
-      <div style={{ padding: '8px 8px' }}>
+      {/* Identity + sign out */}
+      <div style={{ borderTop: '1px solid var(--sf-line)', paddingTop: 10, marginTop: 4 }}>
+        <div style={{ padding: '0 4px 8px' }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: 'var(--ink-3)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            Signed in
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-2)', marginTop: 2 }}>Agent</div>
+        </div>
         <button
-          onClick={() => { logout(); router.push('/agent/login'); }}
+          onClick={signOut}
           style={{
-            all: 'unset', cursor: 'pointer',
-            fontSize: 12, color: 'var(--ink-3)',
-            transition: 'color 0.12s',
+            all: 'unset',
+            boxSizing: 'border-box',
+            width: '100%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '9px 12px',
+            borderRadius: 10,
+            border: '1px solid var(--sf-line-2)',
+            color: 'var(--ink-2)',
+            fontSize: 13,
+            fontWeight: 600,
+            transition: 'background 0.12s, color 0.12s, border-color 0.12s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--sf-sunken)';
+            e.currentTarget.style.color = 'var(--danger)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--ink-2)';
+          }}
         >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
           Sign out
         </button>
       </div>
