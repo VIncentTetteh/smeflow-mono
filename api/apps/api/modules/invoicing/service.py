@@ -294,6 +294,7 @@ class InvoicingService:
         customer_address: str | None,
         line_items: list[dict],
         invoice_type: str = "invoice",
+        customer_email: str | None = None,
     ) -> Invoice:
         """
         Create an invoice not linked to any sale — for B2B, proforma, or manual billing.
@@ -346,6 +347,7 @@ class InvoicingService:
             customer_name=customer_name,
             customer_tin=customer_tin,
             customer_phone=customer_phone,
+            customer_email=customer_email,
             customer_address=customer_address,
             subtotal=subtotal,
             vat_amount=vat,

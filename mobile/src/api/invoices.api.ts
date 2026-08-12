@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import type {
   DebitNoteCreateDto,
   InvoiceResponseDto,
+  InvoiceSendChannel,
   InvoiceSendResponseDto,
   PaginatedInvoicesDto,
   StandaloneInvoiceCreateDto,
@@ -57,10 +58,13 @@ export async function createDebitNote(
   return response.data;
 }
 
-export async function sendInvoice(invoiceId: string): Promise<InvoiceSendResponseDto> {
+export async function sendInvoice(
+  invoiceId: string,
+  channels?: InvoiceSendChannel[]
+): Promise<InvoiceSendResponseDto> {
   const response = await apiClient.post<InvoiceSendResponseDto>(
     `/api/v1/invoices/${invoiceId}/send`,
-    {}
+    channels ? { channels } : {}
   );
   return response.data;
 }

@@ -24,11 +24,16 @@ export default function NewInvoiceScreen() {
 
   const [customerName, setCustomerName] = useState('');
   const [customerTin, setCustomerTin] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [invoiceType, setInvoiceType] = useState<'invoice' | 'proforma'>('invoice');
   const [lines, setLines] = useState<LineItem[]>([{ desc: '', qty: '1', price: '' }]);
 
   const subtotal = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.price) || 0), 0);
-  const canSubmit = lines.some((l) => l.desc.trim() && Number(l.price) > 0) && !generateInvoice.isPending;
+  const canSubmit =
+    lines.some((l) => l.desc.trim() && Number(l.price) > 0) &&
+    customerPhone.trim().length > 0 &&
+    !generateInvoice.isPending;
 
   function updateLine(idx: number, patch: Partial<LineItem>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -44,10 +49,16 @@ export default function NewInvoiceScreen() {
       Alert.alert('No line items', 'Add at least one item with a description and price.');
       return;
     }
+    if (!customerPhone.trim()) {
+      Alert.alert('Phone required', 'Add the customer\'s phone number so the invoice can be sent to them.');
+      return;
+    }
     generateInvoice.mutate(
       {
         customer_name: customerName.trim() || undefined,
         customer_tin: customerTin.trim() || undefined,
+        customer_phone: customerPhone.trim(),
+        customer_email: customerEmail.trim() || undefined,
         invoice_type: invoiceType,
         line_items: validLines
           .map((l) => ({
@@ -104,8 +115,8 @@ export default function NewInvoiceScreen() {
                 onPress={() => setInvoiceType(t)}
                 style={{
                   flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
-                  backgroundColor: invoiceType === t ? colors.ink : colors.surface,
-                  borderWidth: 1, borderColor: invoiceType === t ? colors.ink : colors.border,
+                  backgroundColor: invoiceType === t ? colors.inverse : colors.surface,
+                  borderWidth: 1, borderColor: invoiceType === t ? colors.inverse : colors.border,
                 }}
               >
                 <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: invoiceType === t ? '#fdf7eb' : colors.muted }}>
@@ -119,6 +130,14 @@ export default function NewInvoiceScreen() {
           <View style={{ marginBottom: 10 }}>
             <FieldLabel label="Customer name (optional)" />
             <TextInput value={customerName} onChangeText={setCustomerName} placeholder="Walk-in customer" placeholderTextColor={colors.muted} style={inputStyle} />
+          </View>
+          <View style={{ marginBottom: 10 }}>
+            <FieldLabel label="Customer phone" />
+            <TextInput value={customerPhone} onChangeText={setCustomerPhone} keyboardType="phone-pad" placeholder="024xxxxxxx" placeholderTextColor={colors.muted} style={inputStyle} />
+          </View>
+          <View style={{ marginBottom: 10 }}>
+            <FieldLabel label="Customer email (optional)" />
+            <TextInput value={customerEmail} onChangeText={setCustomerEmail} autoCapitalize="none" keyboardType="email-address" placeholder="customer@example.com" placeholderTextColor={colors.muted} style={inputStyle} />
           </View>
           <View style={{ marginBottom: 16 }}>
             <FieldLabel label="Customer TIN (optional)" />

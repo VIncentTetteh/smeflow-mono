@@ -451,7 +451,9 @@ describe('feature hook route contracts', () => {
 
     const { result, unmount } = renderHook(() => useSendInvoice(), { wrapper: createWrapper() });
 
-    await expect(act(() => result.current.mutateAsync('inv-1'))).resolves.toMatchObject({
+    await expect(
+      act(() => result.current.mutateAsync({ invoiceId: 'inv-1' }))
+    ).resolves.toMatchObject({
       message: 'sent',
     });
     unmount();

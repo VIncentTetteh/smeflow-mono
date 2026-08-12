@@ -10,6 +10,7 @@ export interface Invoice {
   effective_status: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_email: string | null;
   subtotal: string;
   vat_amount: string;
   total: string;
@@ -18,6 +19,14 @@ export interface Invoice {
   issued_at: string;
   due_date: string | null;
   pdf_url: string | null;
+}
+
+export type InvoiceSendChannel = 'whatsapp' | 'sms' | 'email';
+
+export interface InvoiceSendResult {
+  message: string;
+  channels: InvoiceSendChannel[];
+  results: Record<InvoiceSendChannel, { message_id: string; status: string }>;
 }
 
 export interface PaginatedInvoices {
@@ -55,6 +64,7 @@ export function useGenerateInvoice() {
     mutationFn: (body: {
       customer_name?: string;
       customer_phone?: string;
+      customer_email?: string;
       customer_tin?: string;
       line_items: InvoiceLineInput[];
       due_date?: string;
@@ -73,6 +83,9 @@ export function useVoidInvoice() {
 
 export function useSendInvoice() {
   return useMutation({
-    mutationFn: (id: string) => apiClient.post(`/invoices/${id}/send`).then((r) => r.data),
+    mutationFn: ({ id, channels }: { id: string; channels?: InvoiceSendChannel[] }) =>
+      apiClient
+        .post(`/invoices/${id}/send`, channels ? { channels } : {})
+        .then((r) => r.data as InvoiceSendResult),
   });
 }

@@ -164,6 +164,7 @@ class CustomerMessage(Base):
     customer_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("customers.id"))
     message_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     recipient_phone: Mapped[str | None] = mapped_column(String(20))
+    recipient_email: Mapped[str | None] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     preferred_channel: Mapped[str] = mapped_column(String(20), nullable=False, default="whatsapp")
     consent_status: Mapped[str] = mapped_column(String(20), nullable=False, default="not_required")
@@ -186,9 +187,12 @@ class CustomerMessage(Base):
 
     @property
     def recipient_masked(self) -> str:
-        if not self.recipient_phone:
-            return "No contact"
-        return f"••••{self.recipient_phone[-4:]}"
+        if self.recipient_phone:
+            return f"••••{self.recipient_phone[-4:]}"
+        if self.recipient_email:
+            name, _, domain = self.recipient_email.partition("@")
+            return f"{name[:1]}••••@{domain}" if domain else "••••"
+        return "No contact"
 
 
 class DeliveryAttempt(Base):

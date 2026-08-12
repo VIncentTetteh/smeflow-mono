@@ -5,7 +5,9 @@ import {
   useGenerateInvoice,
   useVoidInvoice,
   useSendInvoice,
+  type Invoice,
   type InvoiceLineInput,
+  type InvoiceSendChannel,
 } from '@/hooks/store/useStoreInvoicing';
 import { PageShell, Card, Button, Badge, EmptyState, Spinner, Table, ghs } from '@/components/store/kit';
 import { Modal, Field, TextInput } from '@/components/store/Modal';
@@ -15,8 +17,8 @@ export default function InvoicingPage() {
   const { data, isLoading } = useInvoices();
   const generate = useGenerateInvoice();
   const voidInv = useVoidInvoice();
-  const send = useSendInvoice();
   const [show, setShow] = useState(false);
+  const [sendTarget, setSendTarget] = useState<Invoice | null>(null);
   const invoices = data?.invoices ?? [];
 
   return (
@@ -67,10 +69,7 @@ export default function InvoicingPage() {
                     PDF
                   </a>
                 )}
-                <Button
-                  variant="ghost"
-                  onClick={() => send.mutate(inv.id, { onSuccess: () => toast.success('Invoice sent') })}
-                >
+                <Button variant="ghost" onClick={() => setSendTarget(inv)}>
                   Send
                 </Button>
                 {inv.status !== 'cancelled' && (
@@ -100,7 +99,85 @@ export default function InvoicingPage() {
           }}
         />
       )}
+
+      {sendTarget && <SendModal invoice={sendTarget} onClose={() => setSendTarget(null)} />}
     </PageShell>
+  );
+}
+
+function SendModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+  const send = useSendInvoice();
+  const available: InvoiceSendChannel[] = [
+    ...(invoice.customer_phone ? (['whatsapp', 'sms'] as const) : []),
+    ...(invoice.customer_email ? (['email'] as const) : []),
+  ];
+  const [channels, setChannels] = useState<InvoiceSendChannel[]>(available);
+  const [error, setError] = useState('');
+
+  const toggle = (c: InvoiceSendChannel) =>
+    setChannels((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+
+  const submit = () => {
+    if (channels.length === 0) {
+      setError('Select at least one channel.');
+      return;
+    }
+    send.mutate(
+      { id: invoice.id, channels },
+      {
+        onSuccess: (result) => {
+          toast.success(result.message);
+          onClose();
+        },
+        onError: (e: Error) => setError(e.message),
+      }
+    );
+  };
+
+  return (
+    <Modal
+      title={`Send invoice #${invoice.invoice_number}`}
+      onClose={onClose}
+      onSubmit={submit}
+      saving={send.isPending}
+      error={error}
+      submitLabel="Send"
+    >
+      {available.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+          This invoice has no customer phone or email on file — add one to send it.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(['whatsapp', 'sms', 'email'] as const).map((c) => {
+            const isAvailable = available.includes(c);
+            const isSelected = channels.includes(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                disabled={!isAvailable}
+                onClick={() => toggle(c)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 10,
+                  border: `1.5px solid ${isSelected ? 'var(--brand)' : 'var(--sf-line-2)'}`,
+                  background: isSelected ? 'var(--brand-soft)' : 'transparent',
+                  color: isSelected ? 'var(--brand)' : 'var(--ink-2)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textTransform: 'capitalize',
+                  cursor: isAvailable ? 'pointer' : 'not-allowed',
+                  opacity: isAvailable ? 1 : 0.4,
+                }}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -114,12 +191,14 @@ function GenerateModal({
   onSave: (body: {
     customer_name?: string;
     customer_phone?: string;
+    customer_email?: string;
     line_items: InvoiceLineInput[];
     due_date?: string;
   }) => void;
 }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [lines, setLines] = useState<{ description: string; qty: string; unit_price: string }[]>([
     { description: '', qty: '1', unit_price: '' },
@@ -141,6 +220,7 @@ function GenerateModal({
     onSave({
       customer_name: name || undefined,
       customer_phone: phone || undefined,
+      customer_email: email || undefined,
       due_date: dueDate || undefined,
       line_items: items,
     });
@@ -158,6 +238,9 @@ function GenerateModal({
           <TextInput value={phone} onChange={setPhone} />
         </Field>
       </div>
+      <Field label="Customer email (optional)">
+        <TextInput value={email} onChange={setEmail} type="email" />
+      </Field>
       <Field label="Due date (optional)">
         <TextInput value={dueDate} onChange={setDueDate} type="date" />
       </Field>

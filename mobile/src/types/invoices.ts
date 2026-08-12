@@ -23,6 +23,8 @@ export interface InvoiceResponseDto {
   supplier_address: string | null;
   customer_name: string | null;
   customer_tin: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
   customer_address: string | null;
   subtotal: DecimalString;
   vat_amount: DecimalString;
@@ -68,6 +70,8 @@ export interface StandaloneInvoiceCreateDto {
   supplier_address?: string | null;
   customer_name?: string | null;
   customer_tin?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
   customer_address?: string | null;
   invoice_type?: 'invoice' | 'proforma' | 'debit_note';
   line_items: InvoiceLineItemInputDto[];
@@ -77,8 +81,10 @@ export interface DebitNoteCreateDto {
   line_items: InvoiceLineItemInputDto[];
 }
 
+export type InvoiceSendChannel = 'whatsapp' | 'sms' | 'email';
+
 export interface InvoiceSendResponseDto {
   message: string;
-  status?: 'queued' | 'delivered' | 'failed' | 'skipped' | string;
-  message_id?: UUID;
+  channels: InvoiceSendChannel[];
+  results: Record<InvoiceSendChannel, { message_id: UUID; status: string }>;
 }

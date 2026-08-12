@@ -1,6 +1,7 @@
 """Consent-aware customer message and delivery history service."""
 
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -9,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from apps.api.modules.notifications.models import CustomerMessage, DeliveryAttempt
+
+if TYPE_CHECKING:
+    from apps.api.modules.invoicing.models import Invoice
 
 SAFE_FAILURE_DETAILS = {
     "temporary_provider_failure": "The provider is temporarily unavailable.",
@@ -42,6 +46,7 @@ class CustomerDeliveryService:
         customer_id: UUID | None = None,
         consent_source: str | None = None,
         consent_at: datetime | None = None,
+        recipient_email: str | None = None,
     ) -> CustomerMessage:
         existing = await self.db.scalar(
             select(CustomerMessage).where(
@@ -52,7 +57,7 @@ class CustomerDeliveryService:
         if existing:
             return existing
         now = datetime.now(timezone.utc)
-        skipped = not recipient_phone or (
+        skipped = not (recipient_phone or recipient_email) or (
             message_type == "credit_reminder" and consent_status != "granted"
         )
         message = CustomerMessage(
@@ -60,6 +65,7 @@ class CustomerDeliveryService:
             customer_id=customer_id,
             message_type=message_type,
             recipient_phone=recipient_phone,
+            recipient_email=recipient_email,
             body=body,
             preferred_channel=preferred_channel,
             consent_status=consent_status,
@@ -235,6 +241,121 @@ class CustomerDeliveryService:
         )
         await self.db.refresh(message, attribute_names=["attempts"])
         return message
+
+    async def send_invoice(
+        self,
+        *,
+        invoice: "Invoice",
+        business_id: UUID,
+        channels: list[str] | None,
+    ) -> dict:
+        """Send an invoice via explicit channels (whatsapp/sms/email).
+
+        Unlike deliver_message()'s automatic whatsapp-then-sms fallback, each
+        requested channel here is a deliberate, independent send — WhatsApp
+        gets the PDF as an actual document (media_url), not just a text link.
+        Writes one CustomerMessage + DeliveryAttempt per channel, so invoice
+        sends show up in delivery history like every other customer message.
+        """
+        from apps.api.modules.notifications.service import (
+            NotificationDispatcher,
+            NotificationMessage,
+            send_email,
+        )
+
+        has_phone = bool(invoice.customer_phone)
+        has_email = bool(invoice.customer_email)
+
+        if channels is None:
+            channels = [c for c in ("whatsapp", "sms") if has_phone] + (
+                ["email"] if has_email else []
+            )
+        if not channels:
+            raise HTTPException(
+                status_code=400,
+                detail="No valid contact info on file for this invoice (phone or email required).",
+            )
+        if "email" in channels and not has_email:
+            raise HTTPException(
+                status_code=400, detail="Email channel requested but this invoice has no customer_email."
+            )
+        if any(c in ("whatsapp", "sms") for c in channels) and not has_phone:
+            raise HTTPException(
+                status_code=400,
+                detail="WhatsApp/SMS channel requested but this invoice has no customer_phone.",
+            )
+
+        body_text = f"Invoice #{invoice.invoice_number} for GHS {invoice.total} is ready."
+        if invoice.pdf_url:
+            body_text = f"{body_text} {invoice.pdf_url}"
+
+        dispatcher = NotificationDispatcher()
+        results: dict[str, dict] = {}
+
+        for channel in channels:
+            message = await self.create_message(
+                business_id=business_id,
+                message_type="invoice",
+                recipient_phone=invoice.customer_phone if channel != "email" else None,
+                recipient_email=invoice.customer_email if channel == "email" else None,
+                body=body_text,
+                preferred_channel=channel,
+                idempotency_key=f"invoice:{invoice.id}:manual:{channel}",
+                consent_status="not_required",
+                related_resource_type="invoice",
+                related_resource_id=str(invoice.id),
+            )
+
+            if channel == "email":
+                try:
+                    html = (
+                        f"<p>Invoice #{invoice.invoice_number} — GHS {invoice.total}</p>"
+                        + (
+                            f"<p><a href='{invoice.pdf_url}'>View / download invoice PDF</a></p>"
+                            if invoice.pdf_url
+                            else ""
+                        )
+                    )
+                    await send_email(
+                        to=invoice.customer_email,
+                        subject=f"Invoice #{invoice.invoice_number}",
+                        html=html,
+                    )
+                    await self.record_attempt(
+                        message, channel="email", provider="email", status="delivered"
+                    )
+                except Exception as exc:
+                    await self.record_attempt(
+                        message,
+                        channel="email",
+                        provider="email",
+                        status="failed",
+                        failure_category=self._classify_failure(str(exc)),
+                        failure_detail=str(exc),
+                    )
+            else:
+                result = await dispatcher.send(
+                    NotificationMessage(
+                        phone=invoice.customer_phone,
+                        text=body_text,
+                        media_url=invoice.pdf_url if channel == "whatsapp" else None,
+                    ),
+                    channel=channel,
+                )
+                delivered = result["status"] in {"sent", "delivered"}
+                await self.record_attempt(
+                    message,
+                    channel=channel,
+                    provider="meta" if channel == "whatsapp" else "sms",
+                    status="delivered" if delivered else "failed",
+                    provider_reference=result.get("provider_reference"),
+                    failure_category=None if delivered else self._classify_failure(result.get("error")),
+                    failure_detail=None if delivered else result.get("error"),
+                )
+
+            results[channel] = {"message_id": str(message.id), "status": message.status}
+
+        return {"message": "Invoice delivery attempted.", "channels": channels, "results": results}
 
     def _classify_failure(self, error: object) -> str:
         text = str(error or "").lower()

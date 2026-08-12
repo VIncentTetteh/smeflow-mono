@@ -120,7 +120,7 @@ import { exportTaxReturn, fileTaxReturn, generateTaxReturn, getTaxCalendar, getT
 import { MOBILE_ANALYTICS_EVENTS, trackEvent } from '@/lib/analytics';
 import { useAuthStore } from '@/store/auth';
 import type { ChatMessageDto, ChatProcessRequestDto } from '@/types/chat';
-import type { StandaloneInvoiceCreateDto } from '@/types/invoices';
+import type { InvoiceSendChannel, StandaloneInvoiceCreateDto } from '@/types/invoices';
 import type { CreatePurchaseOrderDto, CreateSupplierDto, ItemCreateDto, ItemUpdateDto, PurchaseOrderDto, StockAdjustmentDto, SupplierDto } from '@/types/inventory';
 import type { LoanConfirmDto } from '@/types/credit';
 import type { PaymentRequestDto, PaymentDisburseDto, GHQRGenerateDto } from '@/types/payments';
@@ -504,7 +504,8 @@ export function useInvoiceBySale(saleId?: string | null) {
 
 export function useSendInvoice() {
   return useMutation({
-    mutationFn: sendInvoice,
+    mutationFn: ({ invoiceId, channels }: { invoiceId: string; channels?: InvoiceSendChannel[] }) =>
+      sendInvoice(invoiceId, channels),
     onSuccess: () => {
       trackEvent(MOBILE_ANALYTICS_EVENTS.INVOICE_SENT);
     },

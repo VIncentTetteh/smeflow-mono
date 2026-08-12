@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from decimal import Decimal
-from uuid import UUID, uuid4
+from typing import Literal
+from uuid import UUID
 
-import structlog
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
@@ -20,9 +20,6 @@ from apps.api.core.dependencies import (
 )
 from apps.api.core.exceptions import NotFoundError
 from apps.api.modules.invoicing.service import InvoicingService
-from apps.api.workers.dispatch import enqueue_task
-
-logger = structlog.get_logger()
 
 
 class InvoiceResponse(BaseModel):
@@ -38,6 +35,7 @@ class InvoiceResponse(BaseModel):
     customer_name: str | None
     customer_tin: str | None
     customer_phone: str | None
+    customer_email: str | None
     customer_address: str | None
     subtotal: Decimal
     vat_amount: Decimal
@@ -101,9 +99,16 @@ class StandaloneInvoiceCreate(BaseModel):
     customer_name: str | None = Field(None, max_length=255)
     customer_tin: str | None = Field(None, max_length=20)
     customer_phone: str | None = Field(None, max_length=20)
+    customer_email: str | None = Field(None, max_length=255)
     customer_address: str | None = None
     invoice_type: str = Field("invoice", pattern="^(invoice|proforma|debit_note)$")
     line_items: list[InvoiceLineItemInput] = Field(..., min_length=1)
+
+
+class SendInvoiceRequest(BaseModel):
+    channels: list[Literal["whatsapp", "sms", "email"]] | None = Field(
+        None, description="Channels to send via. Omit to send via every channel with valid contact info."
+    )
 
 
 class DebitNoteCreate(BaseModel):
@@ -162,6 +167,7 @@ async def generate_invoice(
         customer_name=body.customer_name,
         customer_tin=body.customer_tin,
         customer_phone=body.customer_phone,
+        customer_email=body.customer_email,
         customer_address=body.customer_address,
         line_items=[item.model_dump() for item in body.line_items],
         invoice_type=body.invoice_type,
@@ -251,47 +257,22 @@ async def get_invoice_pdf(
 @router.post("/{invoice_id}/send", status_code=200)
 async def resend_invoice(
     invoice_id: UUID,
+    body: SendInvoiceRequest = SendInvoiceRequest(),
     business_id: UUID = Depends(get_current_business_id),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Queue an invoice customer message and return its truthful initial state."""
+    """Send an invoice via WhatsApp (as a PDF document), SMS, and/or email.
+
+    Omit `channels` to send via every channel that has valid contact info on
+    the invoice. Each channel is delivered synchronously and recorded as its
+    own CustomerMessage/DeliveryAttempt for delivery-history visibility.
+    """
     svc = InvoicingService(db)
     invoice = await svc.get_invoice(business_id, invoice_id)
     from apps.api.modules.notifications.delivery_service import CustomerDeliveryService
 
-    body = f"Invoice #{invoice.invoice_number} for GHS {invoice.total} is ready."
-    if invoice.pdf_url:
-        body = f"{body} {invoice.pdf_url}"
-    message = await CustomerDeliveryService(db).create_message(
-        business_id=business_id,
-        message_type="invoice",
-        recipient_phone=invoice.customer_phone,
-        body=body,
-        preferred_channel="whatsapp",
-        idempotency_key=f"invoice:{invoice.id}:manual:{uuid4()}",
-        consent_status="not_required",
-        related_resource_type="invoice",
-        related_resource_id=str(invoice.id),
+    result = await CustomerDeliveryService(db).send_invoice(
+        invoice=invoice, business_id=business_id, channels=body.channels
     )
-    if message.status == "skipped":
-        return {
-            "message": "Invoice was not queued because the customer has no valid phone number.",
-            "status": "skipped",
-            "message_id": str(message.id),
-        }
-    try:
-        from apps.api.workers.tasks.notification_tasks import deliver_customer_message
-
-        enqueue_task(deliver_customer_message, str(message.id))
-    except Exception as e:
-        logger.warning("invoice.send_queue_failed", invoice_id=str(invoice.id), error=str(e))
-        return {
-            "message": "Invoice delivery could not be queued. Try again.",
-            "status": "failed",
-            "message_id": str(message.id),
-        }
-    return {
-        "message": "Invoice delivery queued.",
-        "status": "queued",
-        "message_id": str(message.id),
-    }
+    await db.commit()
+    return result

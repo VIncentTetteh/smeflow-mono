@@ -319,8 +319,8 @@ class TestGetInvoice:
     async def test_invoice_pdf_and_send_paths(
         self, async_client: AsyncClient, auth_headers: dict, db_session, monkeypatch
     ):
-        from apps.api.modules.invoicing import router as invoicing_router
         from apps.api.modules.invoicing.models import Invoice
+        from apps.api.modules.notifications.service import NotificationDispatcher
 
         await _upgrade_to_starter(async_client, auth_headers)
 
@@ -345,27 +345,102 @@ class TestGetInvoice:
         assert pdf_resp.status_code in (302, 307)
         assert pdf_resp.headers["location"] == "https://example.com/invoices/test.pdf"
 
-        queued: list[str] = []
-
-        def fake_enqueue(_task, invoice_id_arg: str):
-            queued.append(invoice_id_arg)
-
-        monkeypatch.setattr(invoicing_router, "enqueue_task", fake_enqueue)
+        # No contact info on file at all — 400, nothing to send via.
         send_resp = await async_client.post(
             f"/api/v1/invoices/{invoice_id}/send", headers=auth_headers
         )
-        assert send_resp.status_code == 200
-        assert send_resp.json()["status"] == "skipped"
-        assert queued == []
+        assert send_resp.status_code == 400
 
+        # With a phone on file, default channels (whatsapp + sms) send via
+        # NotificationDispatcher — mock it to a successful send.
         invoice.customer_phone = "+233244555666"
         await db_session.flush([invoice])
+
+        sent: list[tuple[str, str | None]] = []
+
+        async def fake_send(self, message, channel):
+            sent.append((channel, message.media_url))
+            return {"status": "sent", "channel": channel}
+
+        monkeypatch.setattr(NotificationDispatcher, "send", fake_send)
+
         send_resp = await async_client.post(
             f"/api/v1/invoices/{invoice_id}/send", headers=auth_headers
         )
         assert send_resp.status_code == 200
-        assert send_resp.json()["status"] == "queued"
-        assert queued == [send_resp.json()["message_id"]]
+        body = send_resp.json()
+        assert set(body["channels"]) == {"whatsapp", "sms"}
+        assert body["results"]["whatsapp"]["status"] == "delivered"
+        assert body["results"]["sms"]["status"] == "delivered"
+        # WhatsApp gets the PDF as a document (media_url set); SMS doesn't.
+        assert ("whatsapp", "https://example.com/invoices/test.pdf") in sent
+        assert ("sms", None) in sent
+
+        # Explicit channel selection is honored, and rejects a channel with
+        # no contact info on file.
+        email_resp = await async_client.post(
+            f"/api/v1/invoices/{invoice_id}/send",
+            json={"channels": ["email"]},
+            headers=auth_headers,
+        )
+        assert email_resp.status_code == 400
+
+    async def test_invoice_send_via_email_writes_audit_trail(
+        self, async_client: AsyncClient, auth_headers: dict, db_session, monkeypatch
+    ):
+        from apps.api.modules.invoicing.models import Invoice
+        from apps.api.modules.notifications import service as notifications_service
+        from apps.api.modules.notifications.models import CustomerMessage, DeliveryAttempt
+
+        await _upgrade_to_starter(async_client, auth_headers)
+
+        create_resp = await async_client.post(
+            "/api/v1/invoices/generate",
+            json={
+                "invoice_type": "invoice",
+                "customer_email": "buyer@example.com",
+                "line_items": [{"description": "Bulk order", "qty": "1", "unit_price": "150.00"}],
+            },
+            headers=auth_headers,
+        )
+        assert create_resp.json()["customer_email"] == "buyer@example.com"
+        invoice_id = create_resp.json()["id"]
+        invoice = (
+            await db_session.execute(select(Invoice).where(Invoice.id == UUID(invoice_id)))
+        ).scalar_one()
+        invoice.pdf_url = "https://example.com/invoices/test.pdf"
+        await db_session.flush([invoice])
+
+        sent_emails: list[str] = []
+
+        async def fake_send_email(to, subject, html, from_address=None):
+            sent_emails.append(to)
+
+        monkeypatch.setattr(notifications_service, "send_email", fake_send_email)
+
+        send_resp = await async_client.post(
+            f"/api/v1/invoices/{invoice_id}/send",
+            json={"channels": ["email"]},
+            headers=auth_headers,
+        )
+        assert send_resp.status_code == 200
+        body = send_resp.json()
+        assert body["channels"] == ["email"]
+        assert body["results"]["email"]["status"] == "delivered"
+        assert sent_emails == ["buyer@example.com"]
+
+        message_id = UUID(body["results"]["email"]["message_id"])
+        message = await db_session.get(CustomerMessage, message_id)
+        assert message.recipient_email == "buyer@example.com"
+        assert message.status == "delivered"
+        attempts = (
+            await db_session.execute(
+                select(DeliveryAttempt).where(DeliveryAttempt.customer_message_id == message_id)
+            )
+        ).scalars().all()
+        assert len(attempts) == 1
+        assert attempts[0].channel == "email"
+        assert attempts[0].status == "delivered"
 
 
 @pytest.mark.asyncio

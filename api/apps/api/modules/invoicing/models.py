@@ -42,6 +42,7 @@ class Invoice(Base):
     customer_tin: Mapped[str | None] = mapped_column(String(20))
     customer_name: Mapped[str | None] = mapped_column(String(255))
     customer_phone: Mapped[str | None] = mapped_column(String(20))
+    customer_email: Mapped[str | None] = mapped_column(String(255))
     customer_address: Mapped[str | None] = mapped_column(Text)
 
     # Amounts (GRA breakdown)

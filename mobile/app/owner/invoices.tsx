@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, RefreshControl, ScrollView, Share, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,7 +12,7 @@ import {
   useSendInvoice,
   useVoidInvoice,
 } from '@/api/hooks/featureHooks';
-import type { InvoiceResponseDto } from '@/types/invoices';
+import type { InvoiceResponseDto, InvoiceSendChannel } from '@/types/invoices';
 import { useTheme } from '@/lib/theme';
 import { PlanGatedScreen } from '@/components/ui/PlanGatedScreen';
 
@@ -66,6 +66,23 @@ export default function InvoicesScreen() {
   const recordCreditPayment = useRecordCreditPayment();
   const createRepaymentIntent = useCreateCreditRepaymentIntent();
   const [repaymentAmount, setRepaymentAmount] = useState('');
+  const [sendChannels, setSendChannels] = useState<InvoiceSendChannel[]>([]);
+
+  const availableChannels: InvoiceSendChannel[] = [
+    ...(detail?.customer_phone ? (['whatsapp', 'sms'] as const) : []),
+    ...(detail?.customer_email ? (['email'] as const) : []),
+  ];
+
+  useEffect(() => {
+    setSendChannels(availableChannels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, detail?.customer_phone, detail?.customer_email]);
+
+  function toggleChannel(channel: InvoiceSendChannel) {
+    setSendChannels((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
+    );
+  }
 
   function validRepaymentAmount(balanceDue: number) {
     const amount = Number(repaymentAmount);
@@ -379,25 +396,55 @@ export default function InvoicesScreen() {
                   </View>
                 )}
 
+                {availableChannels.length > 0 && (
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+                    {(['whatsapp', 'sms', 'email'] as const).map((channel) => {
+                      const available = availableChannels.includes(channel);
+                      const selected = sendChannels.includes(channel);
+                      return (
+                        <TouchableOpacity
+                          key={channel}
+                          disabled={!available}
+                          onPress={() => toggleChannel(channel)}
+                          style={{
+                            paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: selected ? colors.brand : colors.border,
+                            backgroundColor: selected ? `${colors.brand}15` : colors.bg,
+                            opacity: available ? 1 : 0.35,
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontFamily: fonts.bodySemiBold, color: selected ? colors.brand : colors.muted, textTransform: 'capitalize' }}>
+                            {channel}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TouchableOpacity
                     onPress={() => {
                       if (!selectedId) return;
-                      sendInvoice.mutate(selectedId, {
-                        onSuccess: (result) => {
-                          Alert.alert(
-                            result.status === 'queued' ? 'Delivery queued' : result.status === 'skipped' ? 'Not queued' : 'Delivery update',
-                            result.message,
-                          );
-                        },
-                        onError: (e: Error) => Alert.alert('Error', e.message),
-                      });
+                      if (sendChannels.length === 0) {
+                        Alert.alert('Pick a channel', 'Select at least one channel to send via.');
+                        return;
+                      }
+                      sendInvoice.mutate(
+                        { invoiceId: selectedId, channels: sendChannels },
+                        {
+                          onSuccess: (result) => {
+                            Alert.alert('Invoice sent', result.message);
+                          },
+                          onError: (e: Error) => Alert.alert('Error', e.message),
+                        }
+                      );
                     }}
-                    disabled={sendInvoice.isPending}
+                    disabled={sendInvoice.isPending || availableChannels.length === 0}
                     style={{
                       flex: 1, height: 44, borderRadius: 10, backgroundColor: colors.brand,
                       alignItems: 'center', justifyContent: 'center',
-                      opacity: sendInvoice.isPending ? 0.6 : 1,
+                      opacity: sendInvoice.isPending || availableChannels.length === 0 ? 0.6 : 1,
                     }}
                   >
                     {sendInvoice.isPending
