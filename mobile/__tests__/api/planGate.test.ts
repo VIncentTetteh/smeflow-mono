@@ -152,3 +152,50 @@ describe('usePlanGate — starter plan', () => {
     expect(result.current.allowed).toBe(false);
   });
 });
+
+describe('usePlanGate — pro plan (backend UNLIMITED sentinel is -1, not null)', () => {
+  beforeEach(() => {
+    // Regression fixture: the backend's real PLANS config uses -1 (billing/
+    // models.py's UNLIMITED constant), not null, for the pro tier's numeric
+    // limits — customers, team_members, invoices, employees, ai_messages.
+    mock.onGet('/api/v1/billing/plan').reply(200, {
+      ...PLAN_USAGE_RESPONSE,
+      plan: 'pro',
+      limits: {
+        ...PLAN_USAGE_RESPONSE.limits,
+        analytics: 'full',
+        credit_scoring: true,
+        tax_summary: true,
+        gra_submission: true,
+        employees: -1,
+        invoices: -1,
+        invoice_pdf: true,
+        team_members: -1,
+        customers: -1,
+        ai_messages: -1,
+        businesses: 3,
+        bulk_momo_payout: true,
+        cost_margin_tracking: true,
+        export: true,
+        recurring_invoices: true,
+      },
+    });
+  });
+
+  it.each(['customers', 'team', 'payroll', 'invoices', 'assistant'] as const)(
+    'returns allowed:true for %s on pro (unlimited via -1 sentinel)',
+    async (feature) => {
+      const { result } = renderHook(() => usePlanGate(feature), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.allowed).toBe(true);
+    }
+  );
+
+  it('returns allowed:true for analytics_full, credit_scoring, and bulk_momo_payout on pro', async () => {
+    for (const feature of ['analytics_full', 'credit_scoring', 'bulk_momo_payout'] as const) {
+      const { result } = renderHook(() => usePlanGate(feature), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.allowed).toBe(true);
+    }
+  });
+});

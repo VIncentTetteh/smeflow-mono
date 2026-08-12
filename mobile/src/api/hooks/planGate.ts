@@ -28,12 +28,18 @@ interface GateConfig {
 
 /**
  * Returns true when the limit value indicates the feature is accessible:
- * - null means unlimited (allowed)
+ * - null OR -1 means unlimited (allowed) — the backend's PLANS config uses
+ *   -1 as its UNLIMITED sentinel (see billing/models.py's UNLIMITED
+ *   constant and check_limit()'s `limit is None or limit == -1` check),
+ *   used across every numeric-limit field on the Pro tier (customers,
+ *   team_members, invoices, employees, ai_messages, etc.) — treating only
+ *   `null` as unlimited here incorrectly gated all of those behind an
+ *   upgrade prompt for Pro-tier businesses.
  * - a positive number means capacity exists (allowed)
  * - 0, undefined, or false-y numeric means no capacity (blocked)
  */
 function numericAllowed(limit: number | null | undefined): boolean {
-  return limit === null || (limit != null && limit > 0);
+  return limit === null || limit === -1 || (limit != null && limit > 0);
 }
 
 const FEATURE_GATES: Record<FeatureKey, GateConfig> = {
