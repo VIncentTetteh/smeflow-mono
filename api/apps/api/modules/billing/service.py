@@ -354,6 +354,9 @@ class BillingService:
             try:
                 from libs.payment_clients.paystack import PaystackClient
 
+                callback_base = (
+                    settings.STOREFRONT_WEB_BASE_URL or settings.APP_BASE_URL
+                ).rstrip("/")
                 tx = await PaystackClient().initialize_transaction(
                     email=billing_email,
                     amount_ghs=amount,
@@ -364,6 +367,7 @@ class BillingService:
                         "billing_interval": normalized_interval,
                         "transaction_id": str(txn.id),
                     },
+                    callback_url=f"{callback_base}/store/billing/confirm?ref={reference}",
                 )
                 payment_url = tx.get("authorization_url")
                 logger.info(
@@ -760,18 +764,33 @@ class BillingService:
     async def handle_paystack_webhook(self, payload: dict) -> None:
         """Process a Paystack webhook event and update the subscription tier.
 
+        This is the legacy ``/billing/webhook/paystack`` route's handler —
+        the canonical webhook path is ``/payments/webhooks/paystack``, which
+        already routes ``charge.success`` through ``handle_webhook_success()``
+        (reference/description-based, no dependency on Paystack echoing back
+        custom metadata). This function only exists in case the Paystack
+        dashboard is still pointed at the legacy URL.
+
         Handles the following Paystack event types:
-        - ``subscription.active`` / ``charge.success`` — upgrade to the
-          plan embedded in the event data.
+        - ``charge.success`` — delegate to ``handle_webhook_success()`` by
+          transaction reference, same as the canonical webhook path.
+        - ``subscription.active`` — upgrade to the plan embedded in the
+          event data (only relevant for real Paystack Subscription
+          enrollments, which nothing in this codebase currently creates).
         - ``subscription.disable`` / ``subscription.cancelled`` /
           ``subscription.not_renew`` — downgrade to free.
-
-        If the webhook payload has no ``business_id`` in
-        ``data.customer.metadata`` the call is a silent no-op, guarding
-        against events from unrelated Paystack integrations.
         """
         event = payload.get("event", "")
         data = payload.get("data", {})
+
+        if event == "charge.success":
+            reference = data.get("reference", "")
+            if reference:
+                await self.handle_webhook_success(reference)
+            else:
+                logger.warning("billing.paystack_webhook_missing_reference", paystack_event=event)
+            return
+
         customer = data.get("customer", {})
         business_id: str | None = customer.get("metadata", {}).get("business_id")
         billing_interval: str | None = (
@@ -786,7 +805,7 @@ class BillingService:
             )
             return
 
-        if event in ("subscription.active", "charge.success"):
+        if event == "subscription.active":
             plan_name: str = data.get("plan", {}).get("name", "").lower()
             if "pro" in plan_name:
                 tier = "pro"

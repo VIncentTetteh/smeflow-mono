@@ -82,6 +82,26 @@ export function useSubscribe() {
   });
 }
 
+export interface VerifySubscriptionResult {
+  activated: boolean;
+  plan?: string;
+  billing_interval?: string;
+  status?: string;
+  paystack_status?: string;
+}
+
+/** Called after returning from the Paystack checkout redirect — verifies and
+ * activates the pending subscription directly, without depending on the
+ * webhook having already fired. Idempotent, safe to call repeatedly. */
+export function useVerifySubscription() {
+  return useMutation({
+    mutationFn: (providerRef: string) =>
+      apiClient
+        .post('/billing/subscribe/verify', { provider_ref: providerRef })
+        .then((r) => r.data as VerifySubscriptionResult),
+  });
+}
+
 export function useCancelSubscription() {
   const qc = useQueryClient();
   return useMutation({

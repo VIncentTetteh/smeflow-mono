@@ -175,6 +175,59 @@ async def test_paystack_charge_webhook_reconciles_invoice_sale_and_receivable_id
 
 
 @pytest.mark.asyncio
+async def test_paystack_charge_webhook_activates_pending_subscription_upgrade(
+    db_session, seeded_business
+):
+    """A subscription-upgrade checkout (Initialize Transaction, not a Payment row)
+    must activate via the canonical webhook's fallback to
+    BillingService.handle_webhook_success() — the actual live code path for
+    charge.success, unlike handle_paystack_webhook()'s customer.metadata/data.plan
+    parsing, which this event shape never populates."""
+    from apps.api.modules.billing.models import BillingTransaction, Subscription
+    from apps.api.modules.payments.router import _apply_paystack_payment_update
+
+    business = seeded_business["business"]
+
+    sub = Subscription(business_id=business.id, plan="free", billing_interval="monthly")
+    db_session.add(sub)
+    await db_session.flush([sub])
+
+    reference = f"sub-{business.id}-pro-1700000000"
+    txn = BillingTransaction(
+        subscription_id=sub.id,
+        business_id=business.id,
+        amount=Decimal("149.00"),
+        status="pending",
+        payment_method="paystack",
+        provider_ref=reference,
+        description="subscription_upgrade:pro:monthly",
+    )
+    db_session.add(txn)
+    await db_session.flush([txn])
+
+    # Shaped like a real Initialize-Transaction charge.success: no data.plan,
+    # no data.customer.metadata — just the reference we already track.
+    event_payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": reference,
+            "status": "success",
+            "customer": {"customer_code": "CUS_testabc"},
+        },
+    }
+    await _apply_paystack_payment_update(event_payload, db_session)
+
+    await db_session.refresh(sub)
+    await db_session.refresh(txn)
+    await db_session.refresh(business)
+
+    assert sub.plan == "pro"
+    assert business.subscription == "pro"
+    assert txn.status == "success"
+    assert txn.paid_at is not None
+
+
+@pytest.mark.asyncio
 async def test_generate_ghqr_returns_dynamic_payload(async_client: AsyncClient, auth_headers: dict):
     resp = await async_client.post(
         "/api/v1/payments/ghqr/generate",

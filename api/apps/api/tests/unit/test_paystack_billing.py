@@ -121,3 +121,51 @@ class TestHandlePaystackWebhook:
         ) as mock_update:
             await service.handle_paystack_webhook(payload)
             mock_update.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_paystack_webhook_charge_success_delegates_by_reference(self):
+        """charge.success — the real event a subscription-upgrade checkout produces —
+        must activate via handle_webhook_success(reference), not via
+        data.customer.metadata / data.plan.name (which Initialize Transaction
+        charges never populate)."""
+        mock_db = AsyncMock()
+
+        from apps.api.modules.billing.service import BillingService
+
+        service = BillingService(mock_db)
+
+        # Shaped exactly like what initialize_transaction()'s metadata produces:
+        # top-level data.metadata, no data.plan, no data.customer.metadata.
+        payload = {
+            "event": "charge.success",
+            "data": {
+                "reference": "sub-biz-123-pro-1700000000",
+                "metadata": {
+                    "business_id": "biz-123",
+                    "plan": "pro",
+                    "billing_interval": "monthly",
+                },
+                "customer": {"customer_code": "CUS_testabc"},
+            },
+        }
+
+        with patch.object(
+            service, "handle_webhook_success", new_callable=AsyncMock
+        ) as mock_verify:
+            await service.handle_paystack_webhook(payload)
+            mock_verify.assert_called_once_with("sub-biz-123-pro-1700000000")
+
+    @pytest.mark.asyncio
+    async def test_handle_paystack_webhook_charge_success_missing_reference_is_noop(self):
+        mock_db = AsyncMock()
+
+        from apps.api.modules.billing.service import BillingService
+
+        service = BillingService(mock_db)
+        payload = {"event": "charge.success", "data": {}}
+
+        with patch.object(
+            service, "handle_webhook_success", new_callable=AsyncMock
+        ) as mock_verify:
+            await service.handle_paystack_webhook(payload)
+            mock_verify.assert_not_called()
