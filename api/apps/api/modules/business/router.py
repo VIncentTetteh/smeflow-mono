@@ -149,6 +149,29 @@ async def get_my_business(
     return BusinessDetailResponse.model_validate(business)
 
 
+@router.get("/my-stores")
+async def get_my_stores(
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Every business the authenticated user owns, with today's sales and
+    staff count — for owners running more than one store. Owner-scoped (by
+    user_id), not business-scoped, so it works without switching the active
+    session business first."""
+    svc = BusinessService(db)
+    summaries = await svc.owned_stores_summary(user_id)
+    return [
+        {
+            "business_id": str(s["business_id"]),
+            "business_name": s["business_name"],
+            "subscription": s["subscription"],
+            "today_sales": float(s["today_sales"]),
+            "staff_count": s["staff_count"],
+        }
+        for s in summaries
+    ]
+
+
 @router.get("/dashboard-summary")
 async def get_dashboard_summary(
     business_id: UUID = Depends(get_current_business_id),

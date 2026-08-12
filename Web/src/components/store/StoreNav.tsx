@@ -149,6 +149,18 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    // Only shown to owners of more than one store — filtered separately below.
+    href: '/store/all-stores',
+    label: 'All Stores',
+    roles: OWNER,
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+  },
+  {
     href: '/store/settings',
     label: 'Settings',
     roles: MANAGERS,
@@ -179,7 +191,10 @@ export function StoreNav() {
     router.push('/store/login');
   };
 
-  const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const ownsMultipleStores = businesses.filter((b) => b.role === 'owner').length > 1;
+  const items = NAV_ITEMS.filter((item) => item.roles.includes(role)).filter(
+    (item) => item.href !== '/store/all-stores' || ownsMultipleStores
+  );
 
   return (
     <nav

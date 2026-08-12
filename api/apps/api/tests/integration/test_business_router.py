@@ -80,6 +80,86 @@ class TestDashboardSummary:
 
 
 @pytest.mark.asyncio
+class TestMyStores:
+    async def test_my_stores_returns_only_businesses_owned_by_caller(
+        self, async_client: AsyncClient, auth_headers: dict, seeded_business, db_session
+    ):
+        from decimal import Decimal
+        from uuid import uuid4
+
+        from apps.api.modules.business.models import Business, BusinessMember
+        from apps.api.modules.sales.models import Sale
+
+        owner = seeded_business["user"]
+        first_biz = seeded_business["business"]
+
+        second_biz = Business(owner_id=owner.id, name="Second Shop", type="shop")
+        db_session.add(second_biz)
+        await db_session.flush([second_biz])
+        db_session.add(BusinessMember(business_id=second_biz.id, user_id=owner.id, role="owner"))
+
+        # A sale on the first business today, plus one that shouldn't count
+        # (voided) — confirms the today_sales aggregation is correct.
+        db_session.add_all(
+            [
+                Sale(
+                    business_id=first_biz.id,
+                    recorded_by=owner.id,
+                    status="completed",
+                    payment_method="cash",
+                    subtotal=Decimal("40.00"),
+                    total=Decimal("40.00"),
+                    amount_paid=Decimal("40.00"),
+                    idempotency_key=str(uuid4()),
+                ),
+                Sale(
+                    business_id=first_biz.id,
+                    recorded_by=owner.id,
+                    status="voided",
+                    payment_method="cash",
+                    subtotal=Decimal("999.00"),
+                    total=Decimal("999.00"),
+                    amount_paid=Decimal("0.00"),
+                    idempotency_key=str(uuid4()),
+                ),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await async_client.get("/api/v1/business/my-stores", headers=auth_headers)
+        assert resp.status_code == 200
+        stores = {s["business_id"]: s for s in resp.json()}
+        assert set(stores) == {str(first_biz.id), str(second_biz.id)}
+        assert stores[str(first_biz.id)]["today_sales"] == 40.0
+        assert stores[str(first_biz.id)]["staff_count"] == 1
+        assert stores[str(second_biz.id)]["today_sales"] == 0.0
+        assert stores[str(second_biz.id)]["business_name"] == "Second Shop"
+
+    async def test_my_stores_excludes_businesses_where_caller_is_staff_not_owner(
+        self, async_client: AsyncClient, auth_headers: dict, seeded_business, db_session
+    ):
+        from apps.api.modules.auth.models import User
+        from apps.api.modules.business.models import Business, BusinessMember
+
+        owner = seeded_business["user"]
+        other_owner = User(phone="+233244999002", name="Other Owner")
+        db_session.add(other_owner)
+        await db_session.flush([other_owner])
+
+        other_biz = Business(owner_id=other_owner.id, name="Not Mine", type="shop")
+        db_session.add(other_biz)
+        await db_session.flush([other_biz])
+        db_session.add(BusinessMember(business_id=other_biz.id, user_id=owner.id, role="staff"))
+        await db_session.flush()
+
+        resp = await async_client.get("/api/v1/business/my-stores", headers=auth_headers)
+        assert resp.status_code == 200
+        business_ids = {s["business_id"] for s in resp.json()}
+        assert str(other_biz.id) not in business_ids
+        assert str(seeded_business["business"].id) in business_ids
+
+
+@pytest.mark.asyncio
 class TestSuspensionAppeal:
     async def test_submit_appeal_creates_pending_record(
         self, async_client: AsyncClient, auth_headers: dict

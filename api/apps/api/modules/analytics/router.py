@@ -544,6 +544,19 @@ async def customer_analytics(
     return await svc.customer_analytics(business_id, from_date, to_date)
 
 
+@router.get("/staff-performance")
+async def staff_performance(
+    from_date: str = Query(..., description="ISO date e.g. 2024-01-01"),
+    to_date: str = Query(..., description="ISO date e.g. 2024-01-31"),
+    business_id: UUID = Depends(get_current_business_id),
+    _feat: None = Depends(_require_full_analytics),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Sales totals per staff member (recorded_by) for the given date range."""
+    svc = AnalyticsService(db)
+    return await svc.staff_performance(business_id, from_date, to_date)
+
+
 @router.get("/predictive/insights")
 async def predictive_insights(
     business_id: UUID = Depends(get_current_business_id),

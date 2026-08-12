@@ -339,3 +339,74 @@ async def test_benchmarking_is_unavailable_until_real_aggregate_data_exists(
 
     assert resp.status_code == 503
     assert "not available" in resp.json()["error"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_staff_performance_groups_sales_by_recorded_by(
+    async_client: AsyncClient, auth_headers, seeded_business, db_session
+):
+    from uuid import uuid4
+
+    from apps.api.modules.auth.models import User
+    from apps.api.modules.sales.models import Sale
+
+    await async_client.post(
+        "/api/v1/billing/subscription/change",
+        json={"plan": "pro"},
+        headers=auth_headers,
+    )
+
+    business = seeded_business["business"]
+    owner = seeded_business["user"]
+    cashier = User(phone="+233244999003", name="Cashier Ama")
+    db_session.add(cashier)
+    await db_session.flush([cashier])
+
+    db_session.add_all(
+        [
+            Sale(
+                business_id=business.id,
+                recorded_by=owner.id,
+                status="completed",
+                payment_method="cash",
+                subtotal=Decimal("100.00"),
+                total=Decimal("100.00"),
+                amount_paid=Decimal("100.00"),
+                idempotency_key=str(uuid4()),
+            ),
+            Sale(
+                business_id=business.id,
+                recorded_by=cashier.id,
+                status="completed",
+                payment_method="cash",
+                subtotal=Decimal("30.00"),
+                total=Decimal("30.00"),
+                amount_paid=Decimal("30.00"),
+                idempotency_key=str(uuid4()),
+            ),
+            Sale(
+                business_id=business.id,
+                recorded_by=cashier.id,
+                status="voided",
+                payment_method="cash",
+                subtotal=Decimal("500.00"),
+                total=Decimal("500.00"),
+                amount_paid=Decimal("0.00"),
+                idempotency_key=str(uuid4()),
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    resp = await async_client.get(
+        "/api/v1/analytics/staff-performance",
+        params={"from_date": today_str(), "to_date": today_str()},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    rows = {r["user_id"]: r for r in resp.json()}
+    assert float(rows[str(owner.id)]["revenue"]) == 100.0
+    assert rows[str(owner.id)]["sale_count"] == 1
+    assert float(rows[str(cashier.id)]["revenue"]) == 30.0
+    assert rows[str(cashier.id)]["sale_count"] == 1
+    assert rows[str(cashier.id)]["name"] == "Cashier Ama"

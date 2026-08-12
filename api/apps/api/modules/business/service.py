@@ -275,3 +275,60 @@ class BusinessService:
             verification_ref=data.verification_ref,
             failure_reason=data.failure_reason,
         )
+
+    async def owned_stores_summary(self, user_id: UUID) -> list[dict]:
+        """Every business this user owns, with today's sales and staff count.
+
+        Single authenticated request, no session/business_id switching — loops
+        server-side over the user's own OWNER memberships (never another
+        user's businesses), unlike the per-business endpoints which are all
+        scoped to the JWT's current business_id.
+        """
+        from datetime import timedelta
+
+        from sqlalchemy import func
+
+        from apps.api.modules.sales.models import Sale
+
+        memberships = [
+            m for m in await self.repo.get_memberships_for_user(user_id) if m.role == "owner"
+        ]
+        if not memberships:
+            return []
+
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+
+        summaries = []
+        for membership in memberships:
+            business = membership.business
+            if not business:
+                continue
+            today_sales = (
+                await self.db.scalar(
+                    select(func.coalesce(func.sum(Sale.total), 0)).where(
+                        Sale.business_id == business.id,
+                        Sale.status != "voided",
+                        Sale.created_at >= today_start,
+                        Sale.created_at < today_end,
+                    )
+                )
+            ) or 0
+            staff_count = (
+                await self.db.scalar(
+                    select(func.count(BusinessMember.id)).where(
+                        BusinessMember.business_id == business.id,
+                        BusinessMember.is_active.is_(True),
+                    )
+                )
+            ) or 0
+            summaries.append(
+                {
+                    "business_id": business.id,
+                    "business_name": business.name,
+                    "subscription": business.subscription,
+                    "today_sales": today_sales,
+                    "staff_count": staff_count,
+                }
+            )
+        return summaries

@@ -355,6 +355,45 @@ class AnalyticsService:
             "period": {"from_date": from_date, "to_date": to_date},
         }
 
+    async def staff_performance(
+        self, business_id: UUID, from_date: str, to_date: str
+    ) -> list[dict]:
+        """Sales grouped by recorded_by (the staff member who processed each
+        sale) within a date window — surfaces data already captured on every
+        sale but not previously reported anywhere."""
+        from apps.api.modules.auth.models import User
+
+        start_at, end_at = _window(from_date, to_date)
+        result = await self.db.execute(
+            select(
+                Sale.recorded_by,
+                User.name,
+                User.phone,
+                func.count(Sale.id).label("sale_count"),
+                func.sum(Sale.total).label("revenue"),
+            )
+            .join(User, User.id == Sale.recorded_by)
+            .where(
+                Sale.business_id == business_id,
+                Sale.status != "voided",
+                Sale.created_at >= start_at,
+                Sale.created_at < end_at,
+                Sale.recorded_by.is_not(None),
+            )
+            .group_by(Sale.recorded_by, User.name, User.phone)
+            .order_by(func.sum(Sale.total).desc())
+        )
+        return [
+            {
+                "user_id": str(row.recorded_by),
+                "name": row.name or row.phone,
+                "phone": row.phone,
+                "sale_count": row.sale_count,
+                "revenue": row.revenue or Decimal("0"),
+            }
+            for row in result.all()
+        ]
+
     async def predictive_insights(self, business_id: UUID) -> dict:
         """Phase 4: ML-based predictive analytics for business insights."""
         # Revenue forecasting (simple linear trend)

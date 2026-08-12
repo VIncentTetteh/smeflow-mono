@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { switchStore } from '@/lib/switchStore';
 import { useStoreAuth, type BusinessMembership } from '@/stores/authStore';
 
 /**
@@ -62,18 +63,13 @@ export function BusinessSwitcher() {
     }
     setSwitching(true);
     try {
-      const resp = await fetch('/api/auth/store/switch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_id: target.business_id }),
+      const ok = await switchStore(target.business_id, {
+        setBusiness,
+        queryClient,
+        router,
+        fallbackRole: target.role,
       });
-      if (!resp.ok) return;
-      const json = await resp.json();
-      setBusiness(target.business_id, json.role ?? target.role);
-      // All ['store', ...] data is business-scoped — drop it wholesale.
-      queryClient.clear();
-      setOpen(false);
-      router.refresh();
+      if (ok) setOpen(false);
     } finally {
       setSwitching(false);
     }
